@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم - شركة دار النخبة للاستقدام</title>
+  <link rel="icon" type="image/png" href="logo2.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard-body">
+
+  <!-- شاشة تحميل البيانات عند تسجيل الدخول -->
+<div id="loadingOverlay" style="
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw; height: 100vh;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(5px);
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-family: 'Cairo', sans-serif;
+">
+  <!-- مؤشر التحميل الدائري المتحرك -->
+  <div style="
+    width: 60px;
+    height: 60px;
+    border: 5px solid #e0e0e0;
+    border-top: 5px solid #1c5276;
+    border-radius: 50%;
+    animation: spinLoading 0.9s linear infinite;
+    margin-bottom: 20px;
+  "></div>
+
+  <h3 style="color: #1c5276; font-size: 20px; font-weight: 800; margin-bottom: 8px;">جاري تحميل البيانات وتسجيل الدخول...</h3>
+  <p style="color: #6c757d; font-size: 14px; font-weight: 600;">يرجى الانتظار لحظات حتى تجهيز اللوحة بكافة التفاصيل</p>
+
+  <style>
+    @keyframes spinLoading {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</div>
+
+  <button id="openSidebarBtn" class="open-sidebar-trigger" onclick="toggleSidebar()">
+    <span>☰</span> القائمة
+  </button>
+
+  <div class="dashboard-container">
+    <aside class="sidebar" id="mainSidebar">
+      <button class="toggle-sidebar-btn" onclick="toggleSidebar()" title="إغلاق القائمة">✕</button>
+
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="شعار دار النخبة" class="sidebar-logo-img">
+        <h2>دار النخبة</h2>
+        <p>لوحة الإدارة والتنفيذ</p>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#section-home" class="nav-link active" onclick="switchTab('section-home')">الرئيسية والإحصائيات</a>
+        <a href="#section-announcements" class="nav-link" onclick="switchTab('section-announcements')">إدارة الإعلانات والمعارض</a>
+        <a href="#section-offices" class="nav-link" onclick="switchTab('section-offices')">مكاتب العمالة الخارجية</a>
+        <a href="#section-orders" class="nav-link" onclick="switchTab('section-orders')">إدارة الطلبات</a>
+        <a href="#section-tracking" class="nav-link" onclick="switchTab('section-tracking')">قسم المتابعة</a>
+        <a href="#section-archive" class="nav-link" onclick="switchTab('section-archive')">الأرشيف والمكتملة</a>
+        <a href="#section-statuses" class="nav-link" onclick="switchTab('section-statuses')">إدارة الحالات</a>
+        <a href="#section-categories" class="nav-link" onclick="switchTab('section-categories')">إدارة التصنيفات</a>
+        <a href="#section-cvs" class="nav-link" onclick="switchTab('section-cvs')">السير الذاتية (إضافة/تعديل)</a>
+        <a href="#section-cv-builder" class="nav-link" onclick="switchTab('section-cv-builder')">إنشاء السيفيات</a>
+        <a href="#section-users" class="nav-link" onclick="switchTab('section-users')">إدارة الحسابات</a>
+        <a href="login.html" id="logoutBtn" class="logout-link">تسجيل الخروج</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-main">
+      
+      <!-- 1. الرئيسية والإحصائيات -->
+      <div id="section-home" class="tab-content active">
+        <h3 class="section-title">تحليل حركة الطلبات والمقارنات</h3>
+        <div class="analytics-grid">
+          <div class="analytics-card">
+            <div class="card-header">
+              <span class="card-title">طلبات اليوم</span>
+              <div class="crypto-icon" id="badgeIconToday"></div>
+            </div>
+            <div class="card-body">
+              <span class="main-metric" id="ordersToday">0</span>
+              <div class="trend-badge" id="badgeContainerToday">
+                <span class="trend-arrow" id="arrowToday">-</span>
+                <span class="trend-percent" id="percentToday">0%</span>
+                <span class="trend-label">مقارنة بالأمس</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="analytics-card">
+            <div class="card-header">
+              <span class="card-title">طلبات 7 أيام</span>
+              <div class="crypto-icon" id="badgeIconWeek"></div>
+            </div>
+            <div class="card-body">
+              <span class="main-metric" id="ordersWeek">0</span>
+              <div class="trend-badge" id="badgeContainerWeek">
+                <span class="trend-arrow" id="arrowWeek">-</span>
+                <span class="trend-percent" id="percentWeek">0%</span>
+                <span class="trend-label">مقارنة بالأسبوع السابق</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="analytics-card">
+            <div class="card-header">
+              <span class="card-title">طلبات الشهر كامل</span>
+              <div class="crypto-icon" id="badgeIconMonth"></div>
+            </div>
+            <div class="card-body">
+              <span class="main-metric" id="ordersMonth">0</span>
+              <div class="trend-badge" id="badgeContainerMonth">
+                <span class="trend-arrow" id="arrowMonth">-</span>
+                <span class="trend-percent" id="percentMonth">0%</span>
+                <span class="trend-label">مقارنة بالشهر الماضي</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="section-title">الإحصائيات المباشرة بالنظام</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper blue-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            </div>
+            <div class="stat-info">
+              <h4>إجمالي الطلبات الواردة</h4>
+              <span class="stat-num" id="totalOrdersCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper orange-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 16 14"></polyline></svg>
+            </div>
+            <div class="stat-info">
+              <h4>طلبات قيد المتابعة</h4>
+              <span class="stat-num" id="trackingOrdersCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper purple-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+            </div>
+            <div class="stat-info">
+              <h4>الطلبات والعمالة المؤرشفة</h4>
+              <span class="stat-num" id="archiveCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper green-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div class="stat-info">
+              <h4>السير الذاتية المعروضة</h4>
+              <span class="stat-num" id="activeCvsCount">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- قسم الإعلانات -->
+      <div id="section-announcements" class="tab-content">
+        <section class="add-product-section">
+          <h3>إضافة إعلان / بنر رئيسي جديد</h3>
+          <form id="addAnnouncementForm" class="add-form">
+            <div class="form-grid">
+              <input type="text" id="announceTitle" placeholder="عنوان الإعلان" required>
+              <input type="file" id="announceImage" accept="image/*" required>
+            </div>
+            <button type="submit" class="btn-submit">حفظ ونشر الإعلان</button>
+          </form>
+        </section>
+
+        <section class="recent-orders">
+          <h3>الإعلانات المعروضة حالياً بالصفحة الرئيسية</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الصورة</th>
+                <th>عنوان الإعلان</th>
+                <th>تاريخ الإضافة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="announcementsTableBody">
+              <tr><td colspan="4">جاري تحميل الإعلانات...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- قسم مكاتب العمالة -->
+      <div id="section-offices" class="tab-content">
+        <section class="add-product-section">
+          <h3>إضافة مكتب عمالة جديد</h3>
+          <form id="addOfficeForm" class="add-form">
+            <div class="form-grid">
+              <input type="text" id="officeNameAr" placeholder="اسم المكتب بالعربي *" required>
+              <input type="text" id="officeNameEn" placeholder="اسم المكتب بالإنجليزي *" required>
+              
+              <select id="officeCountryAr" class="country-dynamic-select" required>
+                <option value="">اختر الدولة (بالعربي) *</option>
+              </select>
+
+              <select id="officeCountryEn" required>
+                <option value="">Choose Country (English) *</option>
+                <option value="Philippines">Philippines</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Ethiopia">Ethiopia</option>
+                <option value="Sri Lanka">Sri Lanka</option>
+                <option value="India">India</option>
+                <option value="Uganda">Uganda</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-submit">حفظ المكتب</button>
+          </form>
+        </section>
+
+        <section class="recent-orders">
+          <h3>قائمة مكاتب العمالة المعتمدة</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم المكتب (عربي)</th>
+                <th>اسم المكتب (إنجليزي)</th>
+                <th>الدولة (عربي)</th>
+                <th>الدولة (إنجليزي)</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="officesTableBody">
+              <tr><td colspan="5">جاري تحميل المكاتب...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- قسم إدارة الطلبات الواردة (تم تحديث الأعمدة) -->
+      <div id="section-orders" class="tab-content">
+        <div style="margin-bottom: 15px;">
+          <h3>طلبات العملاء الواردة</h3>
+        </div>
+
+        <section class="recent-orders">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم العميل</th>
+                <th>العامل المطلوبة / الاسم الداخلي</th>
+                <th>منذ طلب العميل</th>
+                <th>التأشيرة</th>
+                <th>تاريخ الطلب</th>
+                <th>الإجراءات والخيارات</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr><td colspan="6">جاري تحميل الطلبات...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- قسم المتابعة -->
+      <div id="section-tracking" class="tab-content">
+        <h3>قسم متابعة طلبات الاستقدام المقبولة</h3>
+        <section class="recent-orders">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم العميل</th>
+                <th>العامل المطلوبة / الاسم الداخلي</th>
+                <th>كم يوم من قبول الطلب</th>
+                <th>رقم الجوال</th>
+                <th>الحالة الحالية للإجراء</th>
+                <th>تغيير الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="trackingTableBody">
+              <tr><td colspan="7">جاري تحميل طلبات المتابعة...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- قسم الأرشيف -->
+      <div id="section-archive" class="tab-content">
+        <h3>قسم الأرشيف (الطلبات المكتملة والواصلة للمملكة)</h3>
+        <section class="recent-orders">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم العميل</th>
+                <th>العاملة / الخدمة</th>
+                <th>رقم الجوال</th>
+                <th>الحالة النهائية</th>
+                <th>تاريخ الإنجاز</th>
+              </tr>
+            </thead>
+            <tbody id="archiveTableBody">
+              <tr><td colspan="5">جاري تحميل الأرشيف...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- إدارة الحالات -->
+      <div id="section-statuses" class="tab-content">
+        <section class="add-product-section">
+          <h3>إضافة حالة إجراءات جديدة</h3>
+          <form id="addStatusForm" class="add-form">
+            <div class="form-grid">
+              <input type="text" id="statusName" placeholder="اسم الحالة" required>
+            </div>
+            <button type="submit" class="btn-submit">حفظ الحالة</button>
+          </form>
+        </section>
+
+        <section class="recent-orders">
+          <h3>الحالات المعتمدة بالنظام</h3>
+          <ul id="statusList" class="custom-list">
+            <li>جاري تحميل الحالات...</li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- قسم إدارة التصنيفات -->
+      <div id="section-categories" class="tab-content">
+        <section class="add-product-section" style="margin-bottom:25px;">
+          <h3>إدارة الجنسيات بالنظام</h3>
+          <form id="addNationalityForm" class="add-form" style="margin-bottom: 20px;">
+            <div class="form-grid">
+              <input type="text" id="newNationalityName" placeholder="اسم الجنسية الجديدة (مثال: أوزبكستان)" required>
+              <button type="submit" class="btn-submit">إضافة جنسية جديدة</button>
+            </div>
+          </form>
+
+          <h4 style="margin: 15px 0 10px 0; color: var(--primary-blue);">الجنسيات المسجلة حالياً</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم الجنسية</th>
+                <th>إجراءات والتعديل (يتحدث في كافة الأقسام تلقائياً)</th>
+              </tr>
+            </thead>
+            <tbody id="nationalitiesTableBody">
+              <tr><td colspan="2">جاري تحميل الجنسيات...</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="add-product-section">
+          <h3>إدارة أولويات ترتيب الظهور في الموقع الرئيسي</h3>
+          <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">
+            حدد ترتيب الأسبقية والظهور في واجهة المستخدم الأساسية (اختر الأولويات حسب الرغبة)
+          </p>
+          
+          <form id="categoryOrderForm" class="add-form">
+            <h4 style="margin-bottom:10px; color:var(--primary-blue);">1. أولوية نوع الخدمة</h4>
+            <div class="form-grid">
+              <select id="firstServiceTypeSort">
+                <option value="إستقدام جديد">أولاً: إستقدام جديد</option>
+                <option value="نقل كفالة">أولاً: نقل كفالة (نقل خدمة)</option>
+              </select>
+            </div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px dashed #ccc;">
+
+            <h4 style="margin-bottom:10px; color:var(--primary-blue);">2. أولوية ترتيب الجنسيات</h4>
+            <div class="form-grid" id="countrySortGrid"></div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px dashed #ccc;">
+
+            <h4 style="margin-bottom:10px; color:var(--primary-blue);">3. أولوية الخبرة العملياتية</h4>
+            <div class="form-grid">
+              <select id="firstExperienceSort">
+                <option value="سبق لها العمل">أولاً: سبق لها العمل</option>
+                <option value="لم يسبق لها العمل">أولاً: لم يسبق لها العمل (جديد)</option>
+              </select>
+            </div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px dashed #ccc;">
+
+            <h4 style="margin-bottom:10px; color:var(--primary-blue);">4. أولوية نوع المهنة / الوظيفة</h4>
+            <div class="form-grid">
+              <select id="firstJobSort">
+                <option value="عاملة منزلية">أولاً: عاملة منزلية</option>
+                <option value="سائق خاص">أولاً: سائق خاص</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn-submit" style="margin-top:20px;">حفظ وتطبيق ترتيب الظهور</button>
+          </form>
+        </section>
+      </div>
+
+      <!-- السير الذاتية -->
+      <div id="section-cvs" class="tab-content">
+        <section class="add-product-section">
+          <h3>إضافة سيرة ذاتية / عامل جديد</h3>
+          <form id="addCvForm" class="add-form">
+            <div class="form-grid">
+              <input type="text" id="cvTitle" placeholder="عنوان العرض (مثال: عاملة منزلية - DN-101)" required>
+              <input type="text" id="cvWorkerName" placeholder="اسم العاملة" required>
+              
+              <select id="cvOffice" style="border: 1px solid var(--accent-gold); background-color: #fdfbf7;">
+                <option value="">اختر مكتب العمالة الخارجية (داخلي فقط)</option>
+              </select>
+
+              <select id="cvJob" required>
+                <option value="">اختر الوظيفة</option>
+                <option value="عاملة منزلية">عاملة منزلية</option>
+                <option value="سائق خاص">سائق خاص</option>
+              </select>
+
+              <select id="cvServiceType" required>
+                <option value="">اختر نوع الخدمة</option>
+                <option value="إستقدام جديد">إستقدام جديد</option>
+                <option value="نقل خدمة">نقل خدمة</option>
+              </select>
+
+              <select id="cvCountry" class="country-dynamic-select" required>
+                <option value="">اختر الجنسية</option>
+              </select>
+
+              <select id="cvReligion" required>
+                <option value="">اختر الديانة</option>
+                <option value="مسلمة">مسلمة / مسلم</option>
+                <option value="غير مسلمة">غير مسلمة / غير مسلم</option>
+              </select>
+
+              <select id="cvExperience" required>
+                <option value="">سبق لها العمل؟</option>
+                <option value="سبق لها العمل">سبق لها العمل</option>
+                <option value="لم يسبق لها العمل">لم يسبق لها العمل (جديد)</option>
+              </select>
+
+              <input type="file" id="cvImage" accept="image/*" required>
+            </div>
+            <button type="submit" class="btn-submit">نشر السيرة الذاتية</button>
+          </form>
+        </section>
+
+        <section class="recent-orders">
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+            <h3>قائمة السير الذاتية المسجلة</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="cvSearchInput" placeholder="🔍 ابحث باسم البنت أو الكود..." style="flex: 2; min-width: 200px; padding: 8px 12px;">
+              
+              <select id="cvFilterCountry" class="country-dynamic-select" style="flex: 1; min-width: 130px; padding: 8px;">
+                <option value="">كل الجنسيات</option>
+              </select>
+
+              <select id="cvFilterJob" style="flex: 1; min-width: 130px; padding: 8px;">
+                <option value="">كل الوظائف</option>
+                <option value="عاملة منزلية">عاملة منزلية</option>
+                <option value="سائق خاص">سائق خاص</option>
+              </select>
+
+              <select id="cvFilterService" style="flex: 1; min-width: 130px; padding: 8px;">
+                <option value="">نوع الخدمة</option>
+                <option value="إستقدام جديد">إستقدام جديد</option>
+                <option value="نقل خدمة">نقل خدمة</option>
+              </select>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الصورة</th>
+                <th>العنوان</th>
+                <th>الوظيفة</th>
+                <th>نوع الخدمة</th>
+                <th>اسم العاملة (داخلي)</th>
+                <th>المكتب الخارجي (داخلي)</th>
+                <th>الجنسية</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="cvsTableBody">
+              <tr><td colspan="9">جاري تحميل السير الذاتية...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- قسم إنشاء السيفيات -->
+      <div id="section-cv-builder" class="tab-content">
+        <h3>أداة تصميم وإنشاء السيفيات</h3>
+        <div class="cv-builder-wrapper">
+          <iframe src="cv-dar.html" class="cv-builder-iframe" title="منشئ السير الذاتية"></iframe>
+        </div>
+      </div>
+
+      <!-- إدارة الحسابات -->
+      <div id="section-users" class="tab-content">
+        <section class="add-product-section">
+          <h3>إضافة مسؤول جديد للوحة التحكم</h3>
+          <form id="addUserForm" class="add-form">
+            <div class="form-grid">
+              <input type="email" id="newUserEmail" placeholder="البريد الإلكتروني" required>
+              <input type="password" id="newUserPassword" placeholder="كلمة المرور" required>
+            </div>
+            <button type="submit" class="btn-submit">إنشاء حساب مسؤول</button>
+          </form>
+        </section>
+
+<!-- في قسم إدارة الحسابات (section-users) -->
+<section class="recent-orders">
+  <h3>قائمة المسؤولين والصلاحيات</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>البريد الإلكتروني</th>
+        <th>تاريخ الإضافة</th>
+        <th>الصلاحيات الممنوحة</th>
+        <th>الإجراءات</th>
+      </tr>
+    </thead>
+    <tbody id="usersTableBody">
+      <tr><td colspan="4">جاري تحميل الحسابات...</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- نافذة منبثقة (Modal) لضبط صلاحيات الحساب -->
+<div id="permissionsModal" class="modal-overlay">
+  <div class="modal-box" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>تعديل صلاحيات الحساب</h3>
+      <span class="close-btn" onclick="closePermissionsModal()">&times;</span>
+    </div>
+    <form id="permissionsForm" class="modal-form-body">
+      <input type="hidden" id="permUserId">
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+        حدد الأقسام التي يحق لهذا الحساب الوصول إليها وتعديل بياناتها:
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;" id="permissionsCheckboxesGroup">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_home" value="section-home"> الرئيسية والإحصائيات
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_announcements" value="section-announcements"> إدارة الإعلانات والمعارض
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_offices" value="section-offices"> مكاتب العمالة الخارجية
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_orders" value="section-orders"> إدارة الطلبات الواردة
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_tracking" value="section-tracking"> قسم المتابعة
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_archive" value="section-archive"> الأرشيف والمكتملة
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_statuses" value="section-statuses"> إدارة الحالات والتصنيفات
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_cvs" value="section-cvs"> السير الذاتية (إضافة/تعديل)
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="perm_cv_builder" value="section-cv-builder"> إنشاء السيفيات
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 20px;">
+        <button type="submit" class="btn-submit">حفظ الصلاحيات</button>
+        <button type="button" class="btn-cancel" onclick="closePermissionsModal()">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+
+  <!-- Modal تعديل السيرة الذاتية -->
+  <div id="editCvModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>تعديل بيانات السيرة الذاتية</h3>
+        <span class="close-btn" onclick="closeEditCvModal()">&times;</span>
+      </div>
+      <form id="editCvForm" class="modal-form-body">
+        <input type="hidden" id="editCvId">
+        <div class="form-grid">
+          <input type="text" id="editCvTitle" placeholder="عنوان العرض" required>
+          <input type="text" id="editCvWorkerName" placeholder="اسم العاملة (داخلي)" required>
+          
+          <select id="editCvOffice" style="border: 1px solid var(--accent-gold); background-color: #fdfbf7;">
+            <option value="">اختر مكتب العمالة الخارجية (داخلي فقط)</option>
+          </select>
+
+          <select id="editCvJob" required>
+            <option value="">اختر الوظيفة</option>
+            <option value="عاملة منزلية">عاملة منزلية</option>
+            <option value="سائق خاص">سائق خاص</option>
+          </select>
+
+          <select id="editCvServiceType" required>
+            <option value="">اختر نوع الخدمة</option>
+            <option value="إستقدام جديد">إستقدام جديد</option>
+            <option value="نقل خدمة">نقل خدمة</option>
+          </select>
+
+          <select id="editCvCountry" class="country-dynamic-select" required>
+            <option value="">اختر الجنسية</option>
+          </select>
+
+          <select id="editCvReligion" required>
+            <option value="">اختر الديانة</option>
+            <option value="مسلمة">مسلمة / مسلم</option>
+            <option value="غير مسلمة">غير مسلمة / غير مسلم</option>
+          </select>
+
+          <select id="editCvExperience" required>
+            <option value="">سبق لها العمل؟</option>
+            <option value="سبق لها العمل">سبق لها العمل</option>
+            <option value="لم يسبق لها العمل">لم يسبق لها العمل (جديد)</option>
+          </select>
+
+          <div>
+            <label style="font-size: 11px; display: block; margin-bottom: 4px;">صورة جديدة (اختياري)</label>
+            <input type="file" id="editCvImage" accept="image/*">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">حفظ التعديلات</button>
+          <button type="button" class="btn-cancel" onclick="closeEditCvModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal تعديل الطلبات الواردة المزود بزر "تحديد - تغيير عامل" العلوي المميز -->
+  <div id="orderEditModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 750px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3>تعديل كافة بيانات الطلب</h3>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" onclick="openCvSelectorModal()" style="background-color: var(--accent-gold, #b38b4d); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer;">
+            🔍 تحديد - تغيير عامل
+          </button>
+          <span class="close-btn" onclick="closeOrderEditModal()">&times;</span>
+        </div>
+      </div>
+      <form id="orderEditForm" class="modal-form-body">
+        <input type="hidden" id="editOrderId">
+        <input type="hidden" id="currentSelectedCvTitle">
+
+        <div style="background-color: #f1f5f9; padding: 10px 12px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; font-weight: bold; color: var(--primary-blue);">السيفي المقترن بالطلب حالياً:</span>
+          <span id="displaySelectedCvTitle" style="font-weight: 800; color: #b38b4d; font-size: 14px;">-</span>
+        </div>
+
+        <h4 style="color:var(--primary-blue); margin-bottom:10px;">البيانات الأساسية للعميل</h4>
+        <div class="form-grid">
+          <input type="text" id="editApplicantName" placeholder="الإسم *" required>
+          <input type="text" id="editIdNumber" placeholder="رقم الهوية *" required>
+          <input type="text" id="editBirthDate" placeholder="تاريخ الميلاد - هجري *">
+          <input type="text" id="editPhoneNumber" placeholder="رقم الهاتف *" required>
+        </div>
+
+        <h4 style="color:var(--primary-blue); margin:15px 0 10px 0; border-top:1px dashed #ccc; padding-top:10px;">بيانات التأشيرة</h4>
+        <div class="form-grid">
+          <input type="text" id="editVisaNumber" placeholder="رقم الصادر">
+          <input type="text" id="editVisaIssueDate" placeholder="تاريخ الصادر - هجري">
+          <input type="text" id="editBorderNumber" placeholder="رقم الحدود">
+          <input type="text" id="editEmployerName" placeholder="جهة العمل">
+          <input type="text" id="editWorkCity" placeholder="مدينة العمل">
+          <input type="text" id="editAddress" placeholder="العنوان">
+          <input type="text" id="editRelativeName" placeholder="اسم احد اقارب من الدرجة الأولى">
+          <input type="text" id="editRelativeRelation" placeholder="صلة القرابة">
+          <input type="text" id="editRelativePhone" placeholder="تلفون القريب">
+          <input type="text" id="editRelativeEmployer" placeholder="جهة عمل القريب">
+          <input type="text" id="editHomeFloors" placeholder="عدد أدوار المنزل">
+          <input type="text" id="editHomeRooms" placeholder="عدد الغرف">
+          <input type="text" id="editFamilyMembers" placeholder="عدد أفراد الأسرة">
+        </div>
+
+        <div style="margin-top: 15px;">
+          <textarea id="editNote" placeholder="ملاحظات إضافية..." rows="2"></textarea>
+        </div>
+
+        <div class="modal-actions" style="margin-top:20px;">
+          <button type="submit" class="btn-submit">حفظ التعديلات وتأكيد الطلب</button>
+          <button type="button" class="btn-cancel" onclick="closeOrderEditModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal اختيار وسيفيات منبثقة جديدة فرعية عند الضغط على زر (تحديد - تغيير عامل) -->
+  <div id="cvSelectorModal" class="modal-overlay" style="z-index: 100000;">
+    <div class="modal-box" style="max-width: 650px; max-height: 80vh; overflow-y: auto;">
+      <div class="modal-header" style="background-color: var(--primary-hover, #143d59);">
+        <h3>تحديد / اختيار سيرة ذاتية جديدة</h3>
+        <span class="close-btn" onclick="closeCvSelectorModal()">&times;</span>
+      </div>
+      <div class="modal-form-body">
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">انقر فوق السيرة الذاتية المناسبة لاختيار العاملة الجديدة للطلب:</p>
+        <div id="availableCvsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 380px; overflow-y: auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; background: #fafafa;">
+        </div>
+        <div style="margin-top: 15px; text-align: left;">
+          <button type="button" class="btn-submit" onclick="confirmCvSelection()">تأكيد الاختيار</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal تعديل المتابعة (المفقود) -->
+  <div id="trackingEditModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3>تعديل تفاصيل المتابعة</h3>
+        <span class="close-btn" onclick="closeTrackingEditModal()">&times;</span>
+      </div>
+      <form id="trackingEditForm" class="modal-form-body">
+        <input type="hidden" id="editTrackingOrderId">
+        
+        <div class="form-grid">
+          <div>
+            <label style="font-size: 11px;">الحالة الحالية</label>
+            <input type="text" id="trackStatus">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ دخول POLO</label>
+            <input type="date" id="trackPoloEntryDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ استلام POLO</label>
+            <input type="date" id="trackPoloReceiveDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ دفع مساند</label>
+            <input type="date" id="trackMusanedPayDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ ربط مساند</label>
+            <input type="date" id="trackMusanedLinkDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ توقيع مساند</label>
+            <input type="date" id="trackMusanedSignDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">رقم العقد</label>
+            <input type="text" id="trackContractNo">
+          </div>
+          <div>
+            <label style="font-size: 11px;">الفحص الطبي</label>
+            <input type="text" id="trackMedical">
+          </div>
+          <div>
+            <label style="font-size: 11px;">البصمة</label>
+            <input type="text" id="trackBiometric">
+          </div>
+          <div>
+            <label style="font-size: 11px;">OWWA</label>
+            <input type="text" id="trackOWWA">
+          </div>
+          <div>
+            <label style="font-size: 11px;">OEC</label>
+            <input type="text" id="trackOEC">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ الوكالة</label>
+            <input type="date" id="trackAgencyDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ دخول السفارة</label>
+            <input type="date" id="trackEmbassyEntryDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ استلام التأشيرة</label>
+            <input type="date" id="trackVisaReceiveDate">
+          </div>
+          <div>
+            <label style="font-size: 11px;">تاريخ السفر المتوقع</label>
+            <input type="date" id="trackTravelDate">
+          </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+          <textarea id="trackNotes" placeholder="ملاحظات المتابعة..." rows="2"></textarea>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button type="submit" class="btn-submit">حفظ بيانات المتابعة</button>
+          <button type="button" class="btn-cancel" onclick="closeTrackingEditModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+
+</body>
+</html>

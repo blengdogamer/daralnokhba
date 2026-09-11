@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شركة دار النخبة للاستقدام</title>
+  <link rel="icon" type="image/png" href="logo2.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-container">
+      <div class="header-side left-side">
+        <img src="m-logo.png" alt="مساند" class="partner-logo">
+      </div>
+
+      <div class="header-center">
+        <img src="logo.png" alt="شركة دار النخبة للاستقدام" class="main-logo-img">
+      </div>
+
+      <div class="header-side right-side">
+        <img src="h-logo.png" alt="وزارة الموارد البشرية والتنمية الاجتماعية" class="partner-logo">
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    
+    <!-- قسم الإعلان البنري المتحرك/المتغير من الداشبورد -->
+    <section id="bannerSection" class="announcement-banner-container" style="display: none; margin-bottom: 25px;">
+      <div id="bannerImageContainer" class="banner-wrapper">
+        <!-- يتم تحميل صوَر الإعلانات المضافة من لوحة التحكم هنا -->
+      </div>
+    </section>
+
+    <!-- الفلترة -->
+    <section class="filter-section">
+      <h3>البحث والفلترة</h3>
+      <div class="filter-grid">
+        <select id="filterJob">
+          <option value="">جميع الوظائف</option>
+          <option value="عاملة منزلية">عاملة منزلية</option>
+          <option value="سائق خاص">سائق خاص</option>
+        </select>
+
+        <select id="filterServiceType">
+          <option value="">نوع الخدمة</option>
+          <option value="إستقدام جديد">إستقدام جديد</option>
+          <option value="نقل خدمة">نقل خدمة</option>
+        </select>
+
+        <select id="filterCountry">
+          <option value="">جميع الجنسيات</option>
+        </select>
+
+        <select id="filterReligion">
+          <option value="">جميع الديانات</option>
+          <option value="مسلمة">مسلمة / مسلم</option>
+          <option value="غير مسلمة">غير مسلمة / غير مسلم</option>
+        </select>
+
+        <select id="filterExperience">
+          <option value="">خبرة العمل</option>
+          <option value="سبق لها العمل">سبق لها العمل</option>
+          <option value="لم يسبق لها العمل">لم يسبق لها العمل (جديد)</option>
+        </select>
+
+        <button class="btn-filter" id="applyFilterBtn">تطبيق الفلترة</button>
+      </div>
+    </section>
+
+    <section class="products-section">
+      <h3>العمالة المتاحة</h3>
+      <div class="products-grid" id="productsGrid">
+        <p class="loading-msg">جاري تحميل السير الذاتية المتاحة...</p>
+      </div>
+    </section>
+  </main>
+
+  <section class="info-footer-section">
+    <div class="container info-footer-container">
+      <div class="info-box why-us">
+        <h3>لماذا شركة دار النخبة؟</h3>
+        <p>نسعى أن نكون الأفضل في تقديم خدمة الاستقدام ونقل الخدمات من خلال استقطاب أفضل الأيدي العمالية الماهرة والمعتمدة بأعلى معايير الجودة والأمان.</p>
+      </div>
+      <div class="info-box contact-us">
+        <h3>لنَبقَ على تواصل!</h3>
+        <a href="https://maps.app.goo.gl/eS1i2iz7Bfofyr2X7" target="_blank" class="contact-link">
+          📍 اضغط هنا للوصول والتواصل المباشر معنا
+        </a>
+        <a href="mailto:dar.alnokba@gmail.com" class="contact-link">dar.alnokba@gmail.com</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- نافذة التقديم -->
+  <div id="orderModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>تقديم طلب اختيار</h3>
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+      </div>
+      
+      <form id="orderForm" onsubmit="handleOrderSubmit(event)" class="modal-form-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <input type="text" id="applicantName" placeholder="الإسم *" required>
+          </div>
+          <div class="form-group">
+            <input type="text" id="idNumber" placeholder="رقم الهوية *" required>
+          </div>
+          <div class="form-group">
+            <input type="text" id="birthDate" placeholder="تاريخ الميلاد - هجري *" required>
+          </div>
+          <div class="form-group">
+            <input type="tel" id="phoneNumber" placeholder="رقم الهاتف *" required>
+          </div>
+        </div>
+
+        <div class="form-group checkbox-container" style="margin: 15px 0; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="hasVisa" style="width: auto; cursor: pointer;" onchange="toggleVisaFields()">
+          <label for="hasVisa" style="cursor: pointer; font-weight: bold; font-size: 14px;">لدي تأشيرة</label>
+        </div>
+
+        <div id="visaFields" class="form-grid" style="display: none; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
+          <div class="form-group">
+            <input type="text" id="visaNumber" placeholder="رقم الصادر">
+          </div>
+          <div class="form-group">
+            <input type="text" id="visaIssueDate" placeholder="تاريخ الصادر - هجري">
+          </div>
+          <div class="form-group">
+            <input type="text" id="borderNumber" placeholder="رقم الحدود">
+          </div>
+          <div class="form-group">
+            <input type="text" id="employerName" placeholder="جهة العمل *">
+          </div>
+          <div class="form-group">
+            <input type="text" id="workCity" placeholder="مدينة العمل *">
+          </div>
+          <div class="form-group">
+            <input type="text" id="address" placeholder="العنوان *">
+          </div>
+          <div class="form-group">
+            <input type="text" id="relativeName" placeholder="اسم احد اقارب من الدرجة الأولى *">
+          </div>
+          <div class="form-group">
+            <input type="text" id="relativeRelation" placeholder="صلة القرابة">
+          </div>
+          <div class="form-group">
+            <input type="text" id="relativePhone" placeholder="تلفون القريب *">
+          </div>
+          <div class="form-group">
+            <input type="text" id="relativeEmployer" placeholder="جهة عمل الشخص القريب *">
+          </div>
+          <div class="form-group">
+            <input type="number" id="homeFloors" placeholder="عدد ادوار المنزل *">
+          </div>
+          <div class="form-group">
+            <input type="number" id="homeRooms" placeholder="عدد الغرف في المنزل *">
+          </div>
+          <div class="form-group">
+            <input type="number" id="familyMembers" placeholder="عدد افراد الأسرة *">
+          </div>
+        </div>
+
+        <div class="form-group full-width-input" style="margin-top: 15px;">
+          <textarea id="note" placeholder="ملاحظة" rows="3"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">إرسال</button>
+          <button type="button" class="btn-cancel" onclick="closeModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="imagePreviewModal" class="modal-overlay" onclick="closeImagePreview(event)">
+    <button type="button" class="preview-close-floating" onclick="closeImagePreviewDirect()">&times;</button>
+    <div class="preview-box">
+      <img id="previewImageSrc" src="" alt="السيرة الذاتية">
+    </div>
+  </div>
+
+  <footer class="footer">
+    <a href="login.html" class="copyright-link">جميع الحقوق محفوظة © شركة دار النخبة للاستقدام 2026</a>
+  </footer>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>

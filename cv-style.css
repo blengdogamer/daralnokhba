@@ -1,0 +1,461 @@
+/* استدعاء خط Cairo للعربية و Plus Jakarta Sans للإنجليزية والأرقام */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* ترتيب الخطوط: يبدأ بالإنجليزية ثم العربي الأصلي Cairo */
+  font-family: 'Plus Jakarta Sans', 'Cairo', sans-serif;
+}
+
+body {
+  background-color: #111d2e;
+  color: #fff;
+  direction: rtl;
+  min-height: 100vh;
+}
+
+:root {
+  --dar-blue: #0e3c5e;
+  --dar-beige: #d8c2b0;
+  --dar-bg-light: #f5ece5;
+  --dar-dark: #1f2937;
+  --border-color: #314868;
+}
+
+.app-container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1650px;
+  margin: 0 auto;
+}
+
+.editor-panel {
+  width: 420px;
+  background: #1a293d;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  max-height: 95vh;
+  overflow-y: auto;
+}
+
+.editor-panel h2 {
+  font-size: 16px;
+  color: var(--dar-beige);
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--dar-beige);
+  padding-bottom: 6px;
+}
+
+.editor-panel h3 {
+  font-size: 13px;
+  color: #8da4c4;
+  margin: 15px 0 8px 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+label {
+  font-size: 11px;
+  color: #d1d5db;
+}
+
+input[type="text"], input[type="date"], input[type="file"], select {
+  background: #0e1a2b;
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+select option {
+  background: #0e1a2b;
+  color: #fff;
+}
+
+.btn-download {
+  width: 100%;
+  background: var(--dar-beige);
+  color: var(--dar-blue);
+  font-weight: 800;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 20px;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.btn-download:hover {
+  background: #c7af9a;
+}
+
+.preview-panel {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+
+/* ورقة A4 التفاعلية */
+.cv-card {
+  width: 210mm;
+  height: 297mm;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 0 30px 0 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 1. الهيدر البانورامي العلوي */
+.cv-header {
+  position: relative;
+  width: calc(100% + 60px);
+  margin-right: -30px;
+  margin-left: -30px;
+  height: 140px;
+  overflow: hidden;
+}
+
+.banner-top {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 45px;
+  pointer-events: none;
+}
+
+.header-code {
+  position: absolute;
+  left: 550px;
+  top: 5px;
+}
+
+.code-title {
+  font-size: 17px;
+  font-weight: 900;
+  color: #0e3c5e;
+}
+
+/* 2. شريط الاسم والعلم */
+.name-section {
+  display: flex;
+  align-items: flex-start; /* يحاذي المكونات من الأعلى */
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: -10px;
+  direction: rtl;
+}
+
+/* شريط الاسم الكحلي */
+.name-bar {
+  flex: 1;
+  background: var(--dar-blue);
+  color: #fff;
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  direction: ltr;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  min-height: 42px;
+  border-radius: 4px;
+}
+
+.name-bar .label {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.name-bar .value {
+  font-size: 15px;
+  color: #ffffff;
+  word-break: break-all;
+  text-align: left;
+}
+
+/* حاوية تجمع مربع الدولة والعلم بشكل عمودي فوق بعض */
+.flag-container {
+  width: 90px;
+  display: flex;
+  flex-direction: column; /* ترتيب عمودي: المربع فوق والعلم تحته */
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* المربع الكحلي لاسم الدولة */
+.country-name {
+  background: var(--dar-blue);
+  color: #fff;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 0;
+  border-radius: 4px;
+}
+
+/* دائرة العلم أسفل المربع الكحلي مباشرة */
+.flag-sphere {
+  width: 70px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+  border: 2px solid #fff;
+  margin-top: 10px; /* تداخل بسيط وجميل مع المربع */
+  background: var(--dar-bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.flag-sphere img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 3. مربعات البيانات العلوية */
+.top-info-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.info-item {
+  background: var(--dar-beige);
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  min-height: 48px;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.info-item .label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--dar-blue);
+  margin-bottom: 2px;
+}
+
+.info-item .val {
+  font-size: 13px;
+  font-weight: 800;
+  color: #000;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+/* 4. الجسم الرئيسي */
+.main-body {
+  display: flex;
+  gap: 15px;
+  align-items: stretch;
+}
+
+.details-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.photo-box {
+  width: 260px;
+  height: 100%;
+  min-height: 370px;
+  border: 1.5px solid var(--dar-blue);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.photo-placeholder {
+  color: #9ca3af;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cv-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.block-header {
+  background: var(--dar-blue);
+  color: #fff;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.exp-subtitle {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.block-body {
+  padding: 6px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--dar-blue);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 110px;
+  justify-content: start;
+}
+
+.row-label i {
+  font-size: 5px;
+  color: var(--dar-blue);
+}
+
+.val-box {
+  flex: 1;
+  background: var(--dar-beige);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #000;
+  text-align: center;
+  min-height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+/* 5. قسم المهارات */
+.skills-block {
+  margin-top: 0px;
+}
+
+.center-header {
+  justify-content: center;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.skill-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--dar-blue);
+  flex: 1;
+  text-align: right;
+}
+
+.skill-row i {
+  font-size: 14px;
+  color: var(--dar-blue);
+  width: 20px;
+  text-align: center;
+}
+
+.skill-val {
+  width: 95px;
+  background: var(--dar-beige);
+  padding: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #000;
+  text-align: center;
+  border-radius: 3px;
+  min-height: 24px;
+  display: inline-block;
+}
+
+/* 6. الفوتر السفلي البانورامي */
+.cv-footer {
+  width: calc(100% + 60px);
+  margin-right: -30px;
+  margin-left: -30px;
+  height: 120px;
+  overflow: hidden;
+}
+
+.banner-bottom {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}

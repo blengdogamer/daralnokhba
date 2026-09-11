@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منشئ السيرة الذاتية - شركة دار النخبة للإستقدام</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="cv-style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- لوحة إدخال البيانات -->
+    <aside class="editor-panel">
+      <h2>إدخال بيانات - دار النخبة</h2>
+      <form id="cvForm">
+        
+        <div class="form-group full-width">
+          <label>صورة العاملة (من الجهاز):</label>
+          <input type="file" id="inputPhoto" accept="image/*">
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>كود رقم:</label>
+            <input type="text" id="inputCode" placeholder="مثال: L 1529">
+          </div>
+          <div class="form-group">
+            <label>الدولة والعلم:</label>
+            <select id="inputCountrySelect">
+              <option value="" disabled selected>اختر الدولة</option>
+              <option value="الفلبين" data-flag="https://flagcdn.com/w160/ph.png">الفلبين</option>
+              <option value="إندونيسيا" data-flag="https://flagcdn.com/w160/id.png">إندونيسيا</option>
+              <option value="كينيا" data-flag="https://flagcdn.com/w160/ke.png">كينيا</option>
+              <option value="أثيوبيا" data-flag="https://flagcdn.com/w160/et.png">أثيوبيا</option>
+              <option value="أوغندا" data-flag="https://flagcdn.com/w160/ug.png">أوغندا</option>
+              <option value="سيريلانكا" data-flag="https://flagcdn.com/w160/lk.png">سيريلانكا</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label>Name (الاسم بالإنجليزية):</label>
+            <input type="text" id="inputName" placeholder="الاسم الكامل">
+          </div>
+          <div class="form-group">
+            <label>الوزن:</label>
+            <input type="text" id="inputWeight" placeholder="مثال: 68">
+          </div>
+          <div class="form-group">
+            <label>الطول:</label>
+            <input type="text" id="inputHeight" placeholder="مثال: 166">
+          </div>
+          <div class="form-group">
+            <label>الديانة:</label>
+            <input type="text" id="inputReligion" placeholder="مسيحية / مسلمة">
+          </div>
+          <div class="form-group">
+            <label>تاريخ الميلاد (لحساب العمر تلقائياً):</label>
+            <input type="date" id="inputBirthDate">
+          </div>
+          <div class="form-group">
+            <label>العمر:</label>
+            <input type="text" id="inputAge" placeholder="مثال: 44">
+          </div>
+          <div class="form-group">
+            <label>رقم الجواز:</label>
+            <input type="text" id="inputPassport" placeholder="رقم الجواز">
+          </div>
+        </div>
+
+        <h3>العمل خارج البلاد (Worked abroad)</h3>
+        <div class="form-group full-width">
+          <label>حالة الخبرة (العنوان العلوي):</label>
+          <input type="text" id="inputExpTitle" placeholder="مثال: لم يسبق لها العمل - First Time">
+        </div>
+        <div class="form-group full-width">
+          <label>لون خط حالة الخبرة:</label>
+          <select id="inputExpTitleColor">
+            <option value="#dc2626" selected>أحمر</option>
+            <option value="#000000">أسود</option>
+            <option value="#16a34a">أخضر</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الوظيفة:</label>
+            <input type="text" id="inputJob" placeholder="الوظيفة">
+          </div>
+          <div class="form-group">
+            <label>المدة:</label>
+            <input type="text" id="inputDuration" placeholder="المدة">
+          </div>
+          <div class="form-group full-width">
+            <label>البلد:</label>
+            <input type="text" id="inputExpCountry" placeholder="البلد">
+          </div>
+        </div>
+
+        <h3>البيانات الشخصية</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الحالة الاجتماعية:</label>
+            <input type="text" id="inputMarital" placeholder="الحالة الاجتماعية">
+          </div>
+          <div class="form-group">
+            <label>عدد الأطفال:</label>
+            <input type="text" id="inputChildren" placeholder="عدد الأطفال">
+          </div>
+          <div class="form-group full-width">
+            <label>مكان الميلاد:</label>
+            <input type="text" id="inputBirthPlace" placeholder="مكان الميلاد">
+          </div>
+        </div>
+
+        <h3>اللغة والتعليم</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>اللغة الإنجليزية:</label>
+            <input type="text" id="inputEnglish" placeholder="المستوى">
+          </div>
+          <div class="form-group">
+            <label>اللغة العربية:</label>
+            <input type="text" id="inputArabic" placeholder="المستوى">
+          </div>
+          <div class="form-group full-width">
+            <label>التعليم:</label>
+            <input type="text" id="inputEducation" placeholder="المستوى التعليمي">
+          </div>
+        </div>
+
+        <h3>مهارات العاملة</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>عناية الأطفال:</label>
+            <input type="text" id="inputBabyCare" placeholder="نعم / لا">
+          </div>
+          <div class="form-group">
+            <label>التنظيف:</label>
+            <input type="text" id="inputCleaning" placeholder="نعم / لا">
+          </div>
+          <div class="form-group">
+            <label>عناية كبار السن:</label>
+            <input type="text" id="inputElderlyCare" placeholder="نعم / لا">
+          </div>
+          <div class="form-group">
+            <label>الغسيل:</label>
+            <input type="text" id="inputWashing" placeholder="نعم / لا">
+          </div>
+          <div class="form-group">
+            <label>الطبخ:</label>
+            <input type="text" id="inputCooking" placeholder="نعم / لا / WILLING">
+          </div>
+          <div class="form-group">
+            <label>الكوي:</label>
+            <input type="text" id="inputIroning" placeholder="نعم / لا">
+          </div>
+        </div>
+
+        <button type="button" class="btn-download" onclick="downloadCVAsPNG()">تنزيل السيرة الذاتية (PNG)</button>
+      </form>
+    </aside>
+
+    <!-- المعاينة الحية للقالب -->
+    <main class="preview-panel">
+      <div class="cv-card" id="cvCard">
+        
+        <!-- الهيدر العلوي ببانر up.png -->
+        <header class="cv-header">
+          <img src="up.png" alt="بانر علوي" class="banner-top">
+          <div class="header-overlay">
+            <div class="header-code">
+              <span class="code-title">كود رقم : <span id="cvCode"></span></span>
+            </div>
+          </div>
+        </header>
+
+<!-- شريط الاسم وبجواره (مربع الدولة وتحته العلم) -->
+<div class="name-section">
+  <div class="flag-container">
+    <div class="country-name" id="cvCountryName">---</div>
+    <div class="flag-sphere">
+      <img id="cvFlagImg" src="" alt="" style="display: none;">
+    </div>
+  </div>
+
+  <div class="name-bar">
+    <span class="label">Name :</span>
+    <span id="cvName" class="value"></span>
+  </div>
+</div>
+
+        <!-- الشريط العلوي (الوزن، الطول، الديانة، العمر، رقم الجواز) -->
+        <div class="top-info-grid">
+          <div class="info-item"><span class="label">الوزن</span><span id="cvWeight" class="val"></span></div>
+          <div class="info-item"><span class="label">الطول</span><span id="cvHeight" class="val"></span></div>
+          <div class="info-item"><span class="label">الديانة</span><span id="cvReligion" class="val"></span></div>
+          <div class="info-item"><span class="label">العمر</span><span id="cvAge" class="val"></span></div>
+          <div class="info-item passport-item"><span class="label">رقم الجواز</span><span id="cvPassport" class="val"></span></div>
+        </div>
+
+        <!-- الجسم الرئيسي (القوائم لليمين والصورة لليسار) -->
+        <div class="main-body">
+          
+          <!-- صورة العاملة -->
+          <div class="photo-box" id="photoContainer">
+            <div class="photo-placeholder">صورة العاملة</div>
+          </div>
+
+          <!-- الأقسام والتفاصيل -->
+          <div class="details-column">
+            
+            <!-- قسم العمل خارج البلاد -->
+            <section class="cv-block">
+              <div class="block-header">
+                <span class="header-text">العمل خارج البلاد</span>
+                <span id="cvExpTitle" class="exp-subtitle"></span>
+              </div>
+              <div class="block-body">
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>الوظيفة</span><span id="cvJob" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>المدة</span><span id="cvDuration" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>البلد</span><span id="cvExpCountry" class="val-box"></span></div>
+              </div>
+            </section>
+
+            <!-- قسم البيانات الشخصية -->
+            <section class="cv-block">
+              <div class="block-header">
+                <span class="header-text">البيانات الشخصية</span>
+              </div>
+              <div class="block-body">
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>الحالة الاجتماعية</span><span id="cvMarital" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>عدد الأطفال</span><span id="cvChildren" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>مكان الميلاد</span><span id="cvBirthPlace" class="val-box"></span></div>
+              </div>
+            </section>
+
+            <!-- قسم اللغة والتعليم -->
+            <section class="cv-block">
+              <div class="block-header">
+                <span class="header-text">اللغة والتعليم</span>
+              </div>
+              <div class="block-body">
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>اللغة الإنجليزية</span><span id="cvEnglish" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>اللغة العربية</span><span id="cvArabic" class="val-box"></span></div>
+                <div class="row-item"><span class="row-label"><i class="fa-solid fa-circle"></i>التعليم</span><span id="cvEducation" class="val-box"></span></div>
+              </div>
+            </section>
+
+          </div>
+
+        </div>
+
+        <!-- قسم مهارات العاملة -->
+        <section class="skills-block">
+          <div class="block-header center-header">
+            <span class="header-text">مهارات العاملة</span>
+          </div>
+          <div class="skills-grid">
+            <div class="skill-row">
+              <i class="fa-solid fa-baby"></i>
+              <span class="skill-label">عناية الأطفال</span>
+              <span id="cvBabyCare" class="skill-val"></span>
+            </div>
+            <div class="skill-row">
+              <i class="fa-solid fa-broom"></i>
+              <span class="skill-label">التنظيف</span>
+              <span id="cvCleaning" class="skill-val"></span>
+            </div>
+            <div class="skill-row">
+              <i class="fa-solid fa-wheelchair"></i>
+              <span class="skill-label">عناية كبار السن</span>
+              <span id="cvElderlyCare" class="skill-val"></span>
+            </div>
+            <div class="skill-row">
+              <i class="fa-solid fa-soap"></i>
+              <span class="skill-label">الغسيل</span>
+              <span id="cvWashing" class="skill-val"></span>
+            </div>
+            <div class="skill-row">
+              <i class="fa-solid fa-utensils"></i>
+              <span class="skill-label">الطبخ</span>
+              <span id="cvCooking" class="skill-val"></span>
+            </div>
+            <div class="skill-row">
+              <i class="fa-solid fa-shirt"></i>
+              <span class="skill-label">الكوي</span>
+              <span id="cvIroning" class="skill-val"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- الفوتر السفلي ببانر down.jpg -->
+        <footer class="cv-footer">
+          <img src="down.png" alt="بانر سفلي" class="banner-bottom">
+        </footer>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="cv-script.js"></script>
+</body>
+</html>

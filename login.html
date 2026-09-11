@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول - شركة دار النخبة للاستقدام</title>
+  <link rel="icon" type="image/png" href="logo2.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page-body">
+
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo-container">
+        <img src="logo.png" alt="شعار دار النخبة" class="login-logo-img">
+      </div>
+      <h2>تسجيل الدخول</h2>
+      <p class="login-subtitle">لوحة إدارة شركة دار النخبة للاستقدام</p>
+
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="loginEmail">البريد الإلكتروني</label>
+          <input type="email" id="loginEmail" placeholder="example@domain.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">كلمة المرور</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login-submit">دخول</button>
+      </form>
+
+      <div class="back-home">
+        <a href="index.html">← العودة للرئيسية</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD1uJ5bxyhijkiVNSopk-HJtCv075tgFXU",
+      authDomain: "daralakshar.firebaseapp.com",
+      databaseURL: "https://daralakshar-default-rtdb.firebaseio.com",
+      projectId: "daralakshar",
+      storageBucket: "daralakshar.firebasestorage.app",
+      messagingSenderId: "588849018078",
+      appId: "1:588849018078:web:2b1d8164517b2cf4d7fe4f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = "dashboard.html";
+      } catch (error) {
+        alert("خطأ في تسجيل الدخول: البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+      }
+    });
+  </script>
+</body>
+</html>
