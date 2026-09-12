@@ -33,6 +33,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+const TELEGRAM_BOT_TOKEN = "8967937243:AAGAepEyU1j0HQOC-5Ko43VmAhpUd6DnUpc";
+const TELEGRAM_CHAT_ID = "-1004478651730";
+
 let systemStatuses = [];
 let allCvsData = []; 
 let registeredOffices = [];
@@ -135,6 +138,7 @@ async function initDashboard() {
       loadOffices(),
       loadCategorySettings(),
       loadCvs(),
+      setupDashboardSearchFilters(), 
       loadUsers()
     ]);
 
@@ -147,6 +151,30 @@ async function initDashboard() {
     setupCvSearchAndFilters();
   } catch (err) {
     console.error("خطأ أثناء تحميل البيانات:", err);
+  }
+}
+
+async function sendTelegramAcceptNotification(orderData) {
+  try {
+    let message = `✅ *تم قبول الطلب بنجاح!* ✅\n\n`;
+    message += `👤 *اسم العميل:* ${orderData.applicantName || '-'}\n`;
+    message += `🪪 *رقم الهوية:* ${orderData.idNumber || '-'}\n`;
+    message += `📞 *رقم الجوال:* ${orderData.phoneNumber || '-'}\n`;
+    message += `📄 *السيرة الذاتية المختارة:* ${orderData.selectedItem || '-'}\n`;
+    message += `⏰ *تاريخ ووقت القبول:* ${new Date().toLocaleString('ar-SA')}\n`;
+
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (err) {
+    console.error("خطأ إرسال إشعار القبول للتليجرام:", err);
   }
 }
 
@@ -617,32 +645,47 @@ window.updateRowCompletionAction = async function(orderId, actionValue) {
 
 window.openOrderEditModal = async function(order) {
   selectedWorkerTitleForEdit = order.selectedItem;
-  document.getElementById('editOrderId').value = order.id;
-  document.getElementById('currentSelectedCvTitle').value = order.selectedItem || '';
+
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value || '';
+  };
+
+  setVal('editOrderId', order.id);
+  setVal('currentSelectedCvTitle', order.selectedItem);
   
   const titleDisplay = document.getElementById('displaySelectedCvTitle');
   if (titleDisplay) titleDisplay.textContent = order.selectedItem || 'غير محدد';
 
-  document.getElementById('editApplicantName').value = order.applicantName || '';
-  document.getElementById('editIdNumber').value = order.idNumber || '';
-  document.getElementById('editBirthDate').value = order.birthDate || '';
-  document.getElementById('editPhoneNumber').value = order.phoneNumber || '';
-  document.getElementById('editNote').value = order.note || '';
+  setVal('editApplicantName', order.applicantName);
+  setVal('editIdNumber', order.idNumber);
+  setVal('editBirthDate', order.birthDate);
+  setVal('editPhoneNumber', order.phoneNumber);
+  setVal('editNote', order.note);
+
+  // ضبط مربع الاختيار لتأشيرة العميل وتحديث إظهار/إخفاء الحقول
+  const hasVisaCheckbox = document.getElementById('editHasVisa');
+  if (hasVisaCheckbox) {
+    hasVisaCheckbox.checked = !!order.hasVisa;
+    if (typeof window.toggleEditVisaFields === 'function') {
+      window.toggleEditVisaFields();
+    }
+  }
 
   const visa = order.visaDetails || {};
-  document.getElementById('editVisaNumber').value = visa.visaNumber || '';
-  document.getElementById('editVisaIssueDate').value = visa.visaIssueDate || '';
-  document.getElementById('editBorderNumber').value = visa.borderNumber || '';
-  document.getElementById('editEmployerName').value = visa.employerName || '';
-  document.getElementById('editWorkCity').value = visa.workCity || '';
-  document.getElementById('editAddress').value = visa.address || '';
-  document.getElementById('editRelativeName').value = visa.relativeName || '';
-  document.getElementById('editRelativeRelation').value = visa.relativeRelation || '';
-  document.getElementById('editRelativePhone').value = visa.relativePhone || '';
-  document.getElementById('editRelativeEmployer').value = visa.relativeEmployer || '';
-  document.getElementById('editHomeFloors').value = visa.homeFloors || '';
-  document.getElementById('editHomeRooms').value = visa.homeRooms || '';
-  document.getElementById('editFamilyMembers').value = visa.familyMembers || '';
+  setVal('editVisaNumber', visa.visaNumber);
+  setVal('editVisaIssueDate', visa.visaIssueDate);
+  setVal('editBorderNumber', visa.borderNumber);
+  setVal('editEmployerName', visa.employerName);
+  setVal('editWorkCity', visa.workCity);
+  setVal('editAddress', visa.address);
+  setVal('editRelativeName', visa.relativeName);
+  setVal('editRelativeRelation', visa.relativeRelation);
+  setVal('editRelativePhone', visa.relativePhone);
+  setVal('editRelativeEmployer', visa.relativeEmployer);
+  setVal('editHomeFloors', visa.homeFloors);
+  setVal('editHomeRooms', visa.homeRooms);
+  setVal('editFamilyMembers', visa.familyMembers);
 
   const modal = document.getElementById('orderEditModal');
   if (modal) modal.style.display = 'flex';
@@ -657,7 +700,7 @@ window.openCvSelectorModal = function() {
     availableGrid.innerHTML = activeCvs.map(cv => {
       const isSelected = cv.title === currentTitle;
       return `
-        <div onclick="selectCvForOrder('${cv.title}')" id="cvCard_${cv.title.replace(/\s+/g, '_')}" style="border: 2px solid ${isSelected ? 'var(--primary-blue)' : '#ddd'}; background: ${isSelected ? '#eef6fb' : '#fff'}; padding: 8px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+        <div onclick="selectCvForOrder('${cv.title.replace(/'/g, "\\'")}')" id="cvCard_${cv.title.replace(/\s+/g, '_')}" style="border: 2px solid ${isSelected ? 'var(--primary-blue)' : '#ddd'}; background: ${isSelected ? '#eef6fb' : '#fff'}; padding: 8px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
           <img src="${cv.imageUrl || 'https://via.placeholder.com/60'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;">
           <div style="font-size: 11px; font-weight: bold; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cv.title}</div>
           <div style="font-size: 10px; color: #777;">${cv.workerName || ''}</div>
@@ -681,7 +724,8 @@ window.selectCvForOrder = function(cvTitle) {
     el.style.borderColor = '#ddd';
     el.style.background = '#fff';
   });
-  const target = document.getElementById(`cvCard_${cvTitle.replace(/\s+/g, '_')}`);
+  const safeId = `cvCard_${cvTitle.replace(/\s+/g, '_')}`;
+  const target = document.getElementById(safeId);
   if (target) {
     target.style.borderColor = 'var(--primary-blue)';
     target.style.background = '#eef6fb';
@@ -706,6 +750,7 @@ document.getElementById('orderEditForm')?.addEventListener('submit', async (e) =
   const id = document.getElementById('editOrderId').value;
   const oldCvTitle = document.getElementById('currentSelectedCvTitle').value;
   const newCvTitle = selectedWorkerTitleForEdit || oldCvTitle;
+  const isHasVisaChecked = document.getElementById('editHasVisa')?.checked || false;
 
   const updatedOrder = {
     selectedItem: newCvTitle,
@@ -714,6 +759,7 @@ document.getElementById('orderEditForm')?.addEventListener('submit', async (e) =
     birthDate: document.getElementById('editBirthDate').value,
     phoneNumber: document.getElementById('editPhoneNumber').value,
     note: document.getElementById('editNote').value,
+    hasVisa: isHasVisaChecked,
     visaDetails: {
       visaNumber: document.getElementById('editVisaNumber').value,
       visaIssueDate: document.getElementById('editVisaIssueDate').value,
@@ -751,7 +797,7 @@ document.getElementById('orderEditForm')?.addEventListener('submit', async (e) =
       await Promise.all(archiveNew);
     }
 
-    alert("تم تعديل كافة بيانات الطلب وتأكيد تغيير العاملة بنجاح!");
+    alert("تم تعديل كافة بيانات الطلب والتأشيرة بنجاح!");
     closeOrderEditModal();
     await loadOrders();
     await loadCvs();
@@ -766,21 +812,28 @@ window.acceptOrder = async function(id, selectedItemTitle) {
     const orderRef = doc(db, "orders", id);
     const acceptTimestamp = new Date().toISOString();
 
+    const orderDocSnap = await getDoc(orderRef);
+    const orderData = orderDocSnap.exists() ? orderDocSnap.data() : {};
+
     await updateDoc(orderRef, {
       status: "مقبول",
       acceptedAt: acceptTimestamp,
       trackingStatus: systemStatuses[0] || "تحت الإجراء"
     });
 
-    //if (selectedItemTitle) {
-     // const cvQuery = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
-     // const cvSnapshot = await getDocs(cvQuery);
-      
-     // const updatePromises = cvSnapshot.docs.map(cvDoc => updateDoc(doc(db, "cvs", cvDoc.id), { status: "مؤرشف" }));
-    //  await Promise.all(updatePromises);
-   // }
+    // تحديث حالة السيرة الذاتية إلى "تم الانتهاء" لترحيلها تلقائياً إلى أرشيف السيفيات
+    if (selectedItemTitle) {
+      const cvQuery = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
+      const cvSnapshot = await getDocs(cvQuery);
+      const cvFinishedUpdates = cvSnapshot.docs.map(cvDoc => 
+        updateDoc(doc(db, "cvs", cvDoc.id), { status: "تم الانتهاء" })
+      );
+      await Promise.all(cvFinishedUpdates);
+    }
 
-    alert("تم قبول الطلب ونقله إلى قسم المتابعة وأرشفة السيفي المختار فقط!");
+    await sendTelegramAcceptNotification({ id, ...orderData, selectedItem: selectedItemTitle });
+
+    alert("تم قبول الطلب، ونقله إلى قسم المتابعة، وتحويل السيرة الذاتية إلى أرشيف السيفيات بنجاح!");
     loadOrders();
     loadTracking();
     loadCvs();
@@ -828,10 +881,21 @@ async function loadTracking() {
     const item = docSnap.data();
     const id = docSnap.id;
 
-    let daysDiff = 0;
-    const acceptDate = item.acceptedAt ? new Date(item.acceptedAt) : (item.createdAt ? new Date(item.createdAt) : now);
-    const diffTime = Math.abs(now - acceptDate);
-    daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+let daysDiff = 0;
+
+// تحويل الأرقام العربية الشرقيّة إلى إنجليزية إن وجدت
+const parseSafeDate = (dateStr) => {
+  if (!dateStr) return null;
+  if (typeof dateStr !== 'string') return new Date(dateStr);
+  const westernNumbers = dateStr.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  const d = new Date(westernNumbers);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const acceptDate = parseSafeDate(item.acceptedAt) || parseSafeDate(item.createdAtIso) || parseSafeDate(item.createdAt) || new Date();
+const diffTime = Math.abs(now - acceptDate);
+daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+if (isNaN(daysDiff)) daysDiff = 0;
 
     let colorStyle = '#27ae60';
     if (daysDiff >= 31 && daysDiff <= 45) {
@@ -971,7 +1035,7 @@ window.updateTrackingStatus = async function(id, newStatus) {
   loadTracking();
 };
 
-// 7. الأرشيف
+
 async function loadArchive() {
   const tbody = document.getElementById('archiveTableBody');
   if (!tbody) return;
@@ -983,12 +1047,14 @@ async function loadArchive() {
   if (archiveCountElem) archiveCountElem.textContent = querySnapshot.size;
 
   if (querySnapshot.empty) {
-    tbody.innerHTML = '<tr><td colspan="5">الأرشيف فارغ حالياً</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">الأرشيف فارغ حالياً</td></tr>';
     return;
   }
 
   tbody.innerHTML = querySnapshot.docs.map(docSnap => {
     const item = docSnap.data();
+    const id = docSnap.id;
+    const safeOrderData = JSON.stringify({ id, ...item }).replace(/"/g, '&quot;');
     return `
       <tr>
         <td>${item.applicantName || '-'}</td>
@@ -996,6 +1062,9 @@ async function loadArchive() {
         <td>${item.phoneNumber || '-'}</td>
         <td><span style="color:#27ae60; font-weight:bold;">${item.trackingStatus || 'مكتمل ومؤرشف'}</span></td>
         <td>${item.createdAt || '-'}</td>
+        <td>
+          <button class="btn-action btn-edit" onclick="openOrderEditModal(${safeOrderData})">تعديل</button>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1111,28 +1180,75 @@ document.getElementById('addCvForm')?.addEventListener('submit', async (e) => {
   loadCvs();
 });
 
+let allArchiveCvsData = [];
+
 async function loadCvs() {
   const tbody = document.getElementById('cvsTableBody');
-  if (!tbody) return;
+  const archiveTbody = document.getElementById('cvArchiveTableBody');
 
   const querySnapshot = await getDocs(collection(db, "cvs"));
   allCvsData = [];
+  allArchiveCvsData = [];
   cvsMapCache = {};
   let active = 0;
 
   querySnapshot.forEach((docSnap) => {
     const item = docSnap.data();
     const id = docSnap.id;
-    if (item.status === 'نشط') active++;
-    allCvsData.push({ id, ...item });
     cvsMapCache[item.title] = item.workerName || '';
+
+    // إظهار السيفيات النشطة فقط في الجدول الرئيسي
+    if (item.status === 'نشط') {
+      active++;
+      allCvsData.push({ id, ...item });
+    } else {
+      // إرسال السيفيات المنتهية والمؤرشفة لقسم الأرشيف
+      allArchiveCvsData.push({ id, ...item });
+    }
   });
 
   const activeCvsElem = document.getElementById('activeCvsCount');
   if (activeCvsElem) activeCvsElem.textContent = active;
 
   renderCvsTable(allCvsData);
+  renderArchiveCvsTable(allArchiveCvsData);
 }
+
+function renderArchiveCvsTable(dataList) {
+  const tbody = document.getElementById('cvArchiveTableBody');
+  if (!tbody) return;
+
+  if (dataList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9">لا توجد سير ذاتية في الأرشيف حالياً</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = dataList.map((item) => {
+    return `
+      <tr>
+        <td><img src="${item.imageUrl || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
+        <td>${item.title}</td>
+        <td><strong>${item.job || 'عاملة منزلية'}</strong></td>
+        <td>${item.serviceType || 'إستقدام جديد'}</td>
+        <td><strong style="color:#b38b4d;">${item.workerName || 'غير محدد'}</strong></td>
+        <td><span style="background:#f1f5f9; padding:3px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${item.officeName || 'غير محدد'}</span></td>
+        <td>${item.country}</td>
+        <td><span style="background:#ffeaa7; color:#d63031; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
+        <td>
+          <button class="btn-action btn-accept" onclick="reactivateCv('${item.id}')">إعادة تفعيل 🔄</button>
+          <button class="btn-action btn-delete" onclick="deleteCv('${item.id}')">حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.reactivateCv = async function(id) {
+  if (confirm("هل تريد إعادة تفعيل هذه السيرة الذاتية ونقلها إلى القائمة الرئيسية؟")) {
+    await updateDoc(doc(db, "cvs", id), { status: 'نشط' });
+    loadCvs();
+  }
+};
 
 function renderCvsTable(dataList) {
   const tbody = document.getElementById('cvsTableBody');
@@ -1284,18 +1400,20 @@ window.viewCvImage = async function(selectedItemTitle) {
       return;
     }
 
-    const imgWindow = window.open("", "_blank");
-    imgWindow.document.write(`
-      <html>
-        <head><title>معاينة السيرة الذاتية - ${selectedItemTitle}</title></head>
-        <body style="margin:0; display:flex; justify-content:center; align-items:center; background:#111; height:100vh;">
-          <img src="${imageUrl}" style="max-width:95%; max-height:95vh; border-radius:8px; box-shadow:0 0 20px rgba(0,0,0,0.5);">
-        </body>
-      </html>
-    `);
+    const modalImg = document.getElementById('dashboardCvModalImg');
+    const modal = document.getElementById('dashboardCvModal');
+    if (modalImg && modal) {
+      modalImg.src = imageUrl;
+      modal.style.display = 'flex';
+    }
   } catch (err) {
     console.error("خطأ أثناء جلب السيرة الذاتية:", err);
   }
+};
+
+window.closeDashboardCvModal = function() {
+  const modal = document.getElementById('dashboardCvModal');
+  if (modal) modal.style.display = 'none';
 };
 
 // 10. إدارة الحسابات
@@ -1392,6 +1510,14 @@ document.getElementById('permissionsForm')?.addEventListener('submit', async (e)
   }
 });
 
+window.toggleEditVisaFields = function() {
+  const hasVisa = document.getElementById('editHasVisa').checked;
+  const visaGroup = document.getElementById('editVisaFieldsGroup');
+  if (visaGroup) {
+    visaGroup.style.display = hasVisa ? 'grid' : 'none';
+  }
+};
+
 // دالة تطبيق الصلاحيات على المستخدم الحالي وإخفاء الأقسام غير المسموحة
 async function applyUserPermissions(userEmail) {
   try {
@@ -1443,3 +1569,45 @@ window.deleteUser = async function(id, email) {
     loadUsers();
   }
 };
+
+function setupDashboardSearchFilters() {
+  const ordersSearch = document.getElementById('ordersSearchInput');
+  if (ordersSearch) {
+    ordersSearch.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      const filtered = allOrdersData.filter(o => 
+        (o.applicantName || '').toLowerCase().includes(term) ||
+        (o.selectedItem || '').toLowerCase().includes(term) ||
+        (o.phoneNumber || '').toLowerCase().includes(term)
+      );
+      // إعادة رسم الجدول بالنتائج المصفاة
+      const tbody = document.getElementById('ordersTableBody');
+      if (!tbody) return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">لا توجد نتائج مطابقة للبحث</td></tr>';
+        return;
+      }
+      // (نفس قالب الصفوف المعرف في loadOrders)
+    });
+  }
+
+  const trackingSearch = document.getElementById('trackingSearchInput');
+  if (trackingSearch) {
+    trackingSearch.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('#trackingTableBody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+      });
+    });
+  }
+
+  const archiveSearch = document.getElementById('archiveSearchInput');
+  if (archiveSearch) {
+    archiveSearch.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('#archiveTableBody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+      });
+    });
+  }
+}

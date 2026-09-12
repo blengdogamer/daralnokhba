@@ -60,25 +60,72 @@
         <p>لوحة الإدارة والتنفيذ</p>
       </div>
       <nav class="sidebar-nav">
-        <a href="#section-home" class="nav-link active" onclick="switchTab('section-home')">الرئيسية والإحصائيات</a>
-        <a href="#section-announcements" class="nav-link" onclick="switchTab('section-announcements')">إدارة الإعلانات والمعارض</a>
-        <a href="#section-offices" class="nav-link" onclick="switchTab('section-offices')">مكاتب العمالة الخارجية</a>
-        <a href="#section-orders" class="nav-link" onclick="switchTab('section-orders')">إدارة الطلبات</a>
-        <a href="#section-tracking" class="nav-link" onclick="switchTab('section-tracking')">قسم المتابعة</a>
-        <a href="#section-archive" class="nav-link" onclick="switchTab('section-archive')">الأرشيف والمكتملة</a>
-        <a href="#section-statuses" class="nav-link" onclick="switchTab('section-statuses')">إدارة الحالات</a>
-        <a href="#section-categories" class="nav-link" onclick="switchTab('section-categories')">إدارة التصنيفات</a>
-        <a href="#section-cvs" class="nav-link" onclick="switchTab('section-cvs')">السير الذاتية (إضافة/تعديل)</a>
-        <a href="#section-cv-builder" class="nav-link" onclick="switchTab('section-cv-builder')">إنشاء السيفيات</a>
-        <a href="#section-users" class="nav-link" onclick="switchTab('section-users')">إدارة الحسابات</a>
-        <a href="login.html" id="logoutBtn" class="logout-link">تسجيل الخروج</a>
+<a href="#section-home" class="nav-link active" onclick="switchTab('section-home')">📊 الرئيسية والإحصائيات</a>
+<a href="#section-announcements" class="nav-link" onclick="switchTab('section-announcements')">📢 إدارة الإعلانات والمعارض</a>
+<a href="#section-offices" class="nav-link" onclick="switchTab('section-offices')">🏢 مكاتب العمالة الخارجية</a>
+<a href="#section-orders" class="nav-link" onclick="switchTab('section-orders')">🛍️ إدارة الطلبات</a>
+<a href="#section-tracking" class="nav-link" onclick="switchTab('section-tracking')">📍 قسم المتابعة</a>
+<a href="#section-archive" class="nav-link" onclick="switchTab('section-archive')">📦 الأرشيف والمكتملة</a>
+<a href="#section-statuses" class="nav-link" onclick="switchTab('section-statuses')">🏷️ إدارة الحالات</a>
+<a href="#section-categories" class="nav-link" onclick="switchTab('section-categories')">🗂️ إدارة التصنيفات</a>
+<a href="#section-cvs" class="nav-link" onclick="switchTab('section-cvs')">📝 السير الذاتية (إضافة/تعديل)</a>
+<a href="#section-cv-archive" class="nav-link" onclick="switchTab('section-cv-archive')">📁 أرشيف السيفيات</a>
+<a href="#section-cv-builder" class="nav-link" onclick="switchTab('section-cv-builder')">📄 إنشاء السيفيات</a>
+<a href="#section-users" class="nav-link" onclick="switchTab('section-users')">👥 إدارة الحسابات</a>
+<a href="login.html" id="logoutBtn" class="logout-link">🚪 تسجيل الخروج</a>
       </nav>
     </aside>
 
     <main class="dashboard-main">
       
-      <!-- 1. الرئيسية والإحصائيات -->
+<!-- 1. الرئيسية والإحصائيات -->
       <div id="section-home" class="tab-content active">
+        
+        <!-- أولاً: الإحصائيات المباشرة بالنظام -->
+        <h3 class="section-title">الإحصائيات المباشرة بالنظام</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper blue-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            </div>
+            <div class="stat-info">
+              <h4>إجمالي الطلبات الواردة</h4>
+              <span class="stat-num" id="totalOrdersCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper orange-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 16 14"></polyline></svg>
+            </div>
+            <div class="stat-info">
+              <h4>طلبات قيد المتابعة</h4>
+              <span class="stat-num" id="trackingOrdersCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper purple-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+            </div>
+            <div class="stat-info">
+              <h4>طلبات تم االانتهاء منها</h4>
+              <span class="stat-num" id="archiveCount">0</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper green-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div class="stat-info">
+              <h4>السير الذاتية المعروضة</h4>
+              <span class="stat-num" id="activeCvsCount">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ثانياً: تحليل حركة الطلبات والمقارنات -->
         <h3 class="section-title">تحليل حركة الطلبات والمقارنات</h3>
         <div class="analytics-grid">
           <div class="analytics-card">
@@ -127,48 +174,6 @@
           </div>
         </div>
 
-        <h3 class="section-title">الإحصائيات المباشرة بالنظام</h3>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon-wrapper blue-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-            </div>
-            <div class="stat-info">
-              <h4>إجمالي الطلبات الواردة</h4>
-              <span class="stat-num" id="totalOrdersCount">0</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon-wrapper orange-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 16 14"></polyline></svg>
-            </div>
-            <div class="stat-info">
-              <h4>طلبات قيد المتابعة</h4>
-              <span class="stat-num" id="trackingOrdersCount">0</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon-wrapper purple-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
-            </div>
-            <div class="stat-info">
-              <h4>الطلبات والعمالة المؤرشفة</h4>
-              <span class="stat-num" id="archiveCount">0</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon-wrapper green-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            </div>
-            <div class="stat-info">
-              <h4>السير الذاتية المعروضة</h4>
-              <span class="stat-num" id="activeCvsCount">0</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- قسم الإعلانات -->
@@ -254,6 +259,10 @@
           <h3>طلبات العملاء الواردة</h3>
         </div>
 
+        <div style="margin-bottom: 15px;">
+  <input type="text" id="ordersSearchInput" placeholder="بحث بالاسم أو رقم الجوال أو السيفي..." style="max-width: 300px;">
+</div>
+
         <section class="recent-orders">
           <table class="data-table">
             <thead>
@@ -276,6 +285,9 @@
       <!-- قسم المتابعة -->
       <div id="section-tracking" class="tab-content">
         <h3>قسم متابعة طلبات الاستقدام المقبولة</h3>
+        <div style="margin-bottom: 15px;">
+  <input type="text" id="trackingSearchInput" placeholder="بحث في المتابعة..." style="max-width: 300px;">
+</div>
         <section class="recent-orders">
           <table class="data-table">
             <thead>
@@ -299,6 +311,9 @@
       <!-- قسم الأرشيف -->
       <div id="section-archive" class="tab-content">
         <h3>قسم الأرشيف (الطلبات المكتملة والواصلة للمملكة)</h3>
+        <div style="margin-bottom: 15px;">
+  <input type="text" id="archiveSearchInput" placeholder="بحث في الأرشيف..." style="max-width: 300px;">
+</div>
         <section class="recent-orders">
           <table class="data-table">
             <thead>
@@ -308,6 +323,7 @@
                 <th>رقم الجوال</th>
                 <th>الحالة النهائية</th>
                 <th>تاريخ الإنجاز</th>
+                <th>الإجراءات</th>
               </tr>
             </thead>
             <tbody id="archiveTableBody">
@@ -499,6 +515,47 @@
         </section>
       </div>
 
+      <!-- قسم أرشيف السيفيات الجديد -->
+<div id="section-cv-archive" class="tab-content">
+  <section class="recent-orders">
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+      <h3>📁 أرشيف السير الذاتية (السيفيات المنتهية والمؤرشفة)</h3>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <input type="text" id="cvArchiveSearchInput" placeholder="🔍 ابحث في الأرشيف باسم البنت أو الكود..." style="flex: 2; min-width: 200px; padding: 8px 12px;">
+        
+        <select id="cvArchiveFilterCountry" class="country-dynamic-select" style="flex: 1; min-width: 130px; padding: 8px;">
+          <option value="">كل الجنسيات</option>
+        </select>
+
+        <select id="cvArchiveFilterJob" style="flex: 1; min-width: 130px; padding: 8px;">
+          <option value="">كل الوظائف</option>
+          <option value="عاملة منزلية">عاملة منزلية</option>
+          <option value="سائق خاص">سائق خاص</option>
+        </select>
+      </div>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>الصورة</th>
+          <th>العنوان</th>
+          <th>الوظيفة</th>
+          <th>نوع الخدمة</th>
+          <th>اسم العاملة (داخلي)</th>
+          <th>المكتب الخارجي</th>
+          <th>الجنسية</th>
+          <th>الحالة</th>
+          <th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody id="cvArchiveTableBody">
+        <tr><td colspan="9">جاري تحميل أرشيف السيفيات...</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
       <!-- قسم إنشاء السيفيات -->
       <div id="section-cv-builder" class="tab-content">
         <h3>أداة تصميم وإنشاء السيفيات</h3>
@@ -682,23 +739,29 @@
           <input type="text" id="editPhoneNumber" placeholder="رقم الهاتف *" required>
         </div>
 
-        <h4 style="color:var(--primary-blue); margin:15px 0 10px 0; border-top:1px dashed #ccc; padding-top:10px;">بيانات التأشيرة</h4>
-        <div class="form-grid">
-          <input type="text" id="editVisaNumber" placeholder="رقم الصادر">
-          <input type="text" id="editVisaIssueDate" placeholder="تاريخ الصادر - هجري">
-          <input type="text" id="editBorderNumber" placeholder="رقم الحدود">
-          <input type="text" id="editEmployerName" placeholder="جهة العمل">
-          <input type="text" id="editWorkCity" placeholder="مدينة العمل">
-          <input type="text" id="editAddress" placeholder="العنوان">
-          <input type="text" id="editRelativeName" placeholder="اسم احد اقارب من الدرجة الأولى">
-          <input type="text" id="editRelativeRelation" placeholder="صلة القرابة">
-          <input type="text" id="editRelativePhone" placeholder="تلفون القريب">
-          <input type="text" id="editRelativeEmployer" placeholder="جهة عمل القريب">
-          <input type="text" id="editHomeFloors" placeholder="عدد أدوار المنزل">
-          <input type="text" id="editHomeRooms" placeholder="عدد الغرف">
-          <input type="text" id="editFamilyMembers" placeholder="عدد أفراد الأسرة">
-        </div>
+<div style="margin: 15px 0 10px 0; border-top: 1px dashed #ccc; padding-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+  <h4 style="color:var(--primary-blue); margin: 0;">بيانات التأشيرة</h4>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <input type="checkbox" id="editHasVisa" style="width: auto; cursor: pointer;" onchange="toggleEditVisaFields()">
+    <label for="editHasVisa" style="cursor: pointer; font-weight: bold; font-size: 13px; color: var(--primary-blue);">لدي تأشيرة</label>
+  </div>
+</div>
 
+<div id="editVisaFieldsGroup" class="form-grid" style="display: none;">
+  <input type="text" id="editVisaNumber" placeholder="رقم الصادر">
+  <input type="text" id="editVisaIssueDate" placeholder="تاريخ الصادر - هجري">
+  <input type="text" id="editBorderNumber" placeholder="رقم الحدود">
+  <input type="text" id="editEmployerName" placeholder="جهة العمل">
+  <input type="text" id="editWorkCity" placeholder="مدينة العمل">
+  <input type="text" id="editAddress" placeholder="العنوان">
+  <input type="text" id="editRelativeName" placeholder="اسم احد اقارب من الدرجة الأولى">
+  <input type="text" id="editRelativeRelation" placeholder="صلة القرابة">
+  <input type="text" id="editRelativePhone" placeholder="تلفون القريب">
+  <input type="text" id="editRelativeEmployer" placeholder="جهة عمل القريب">
+  <input type="text" id="editHomeFloors" placeholder="عدد أدوار المنزل">
+  <input type="text" id="editHomeRooms" placeholder="عدد الغرف">
+  <input type="text" id="editFamilyMembers" placeholder="عدد أفراد الأسرة">
+</div>
         <div style="margin-top: 15px;">
           <textarea id="editNote" placeholder="ملاحظات إضافية..." rows="2"></textarea>
         </div>
@@ -813,6 +876,15 @@
       </form>
     </div>
   </div>
+
+  <div id="dashboardCvModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+  <div style="background:#fff; padding:15px; border-radius:12px; position:relative; max-width:90%; max-height:90vh; text-align:center;">
+    <span onclick="closeDashboardCvModal()" style="position:absolute; top:10px; left:15px; font-size:24px; cursor:pointer; font-weight:bold; color:#333;">&times;</span>
+    <img id="dashboardCvModalImg" src="" style="max-width:100%; max-height:80vh; border-radius:8px; object-fit:contain;">
+  </div>
+</div>
+
+
   
 
 </body>

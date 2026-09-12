@@ -155,6 +155,34 @@ async function loadProducts(filters = {}) {
   }
 }
 
+async function loadIndexNationalities() {
+  try {
+    const docSnap = await getDoc(doc(db, "settings", "nationalities"));
+    const select = document.getElementById('filterCountry');
+    if (!select) return;
+    let html = '<option value="">جميع الجنسيات</option>';
+    if (docSnap.exists() && docSnap.data().list) {
+      docSnap.data().list.forEach(nat => {
+        html += `<option value="${nat}">${nat}</option>`;
+      });
+    } else {
+      ["الفلبين", "كينيا", "إثيوبيا", "سريلانكا", "الهند", "أوغندا"].forEach(nat => {
+        html += `<option value="${nat}">${nat}</option>`;
+      });
+    }
+    select.innerHTML = html;
+  } catch (e) {
+    console.error("خطأ جلب الجنسيات للفلتر:", e);
+  }
+}
+
+// أضف هذه الدالة داخل Promise.all في نهاية ملف script.js:
+Promise.all([
+  loadAnnouncements(),
+  loadProducts(),
+  loadIndexNationalities()
+]);
+
 window.openImagePreview = function(src) {
   const modal = document.getElementById('imagePreviewModal');
   const img = document.getElementById('previewImageSrc');
