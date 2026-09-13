@@ -72,6 +72,7 @@
 <a href="#section-cv-builder" class="nav-link" onclick="switchTab('section-cv-builder')">📄 إنشاء السيفيات</a>
 <a href="#section-users" class="nav-link" onclick="switchTab('section-users')">👥 إدارة الحسابات</a>
 <a href="#section-olddata" class="nav-link" onclick="switchTab('section-olddata')">📁 داتا قديمة</a>
+<a href="#" class="nav-link" onclick="switchTab('attendanceTab', event)">📅 الحضور وبصمة الوجه</a>
 <a href="login.html" id="logoutBtn" class="logout-link">🚪 تسجيل الخروج</a>
       </nav>
     </aside>
@@ -250,6 +251,82 @@
           </table>
         </section>
       </div>
+
+      <!-- قسم الحضور وبصمة الوجه -->
+<div id="attendanceTab" class="tab-content">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>📅 نظام الحضور والتحضير ببصمة الوجه واللوكيشن</h2>
+    <button class="btn-filter" style="padding: 10px 18px;" onclick="openAddFaceModal()">➕ إضافة بصمة وجه موظف</button>
+  </div>
+
+  <div class="add-product-section">
+    <h3>تسجيل حضور/انصراف موظف (مسح وجه حي)</h3>
+    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+      <button class="btn-filter" style="background-color: #27ae60;" onclick="takeAttendanceScan('check-in')">📷 تسجيل حضور الآن</button>
+      <button class="btn-filter" style="background-color: #e74c3c;" onclick="takeAttendanceScan('check-out')">🚪 تسجيل انصراف الآن</button>
+    </div>
+    <div id="attendanceLocationStatus" style="font-size: 13px; color: #555; font-weight: bold;"></div>
+  </div>
+
+  <!-- جدول سجل الحضور اليومي -->
+  <div class="recent-orders">
+    <h3>سجل الحضور والغياب للعمالة والموظفين</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>صورة البصمة</th>
+          <th>اسم الموظف</th>
+          <th>نوع الحركة</th>
+          <th>التاريخ والوقت</th>
+          <th>الموقع الجغرافي</th>
+          <th>حالة المطابقة</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceLogsTableBody">
+        <tr><td colspan="6">جاري تحميل سجل الحضور...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: إضافة بصمة وجه موظف جديد -->
+<div id="addFaceModal" class="modal-overlay">
+  <div class="modal-box" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>إضافة بصمة وجه موظف جديد</h3>
+      <span class="close-btn" onclick="closeAddFaceModal()">&times;</span>
+    </div>
+    <div class="modal-form-body">
+      <form id="addFaceForm">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size:12px; font-weight:bold;">اسم الموظف / العامل:</label>
+          <input type="text" id="employeeNameInput" required placeholder="أدخل اسم الموظف الكامل">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size:12px; font-weight:bold;">الرقم الوظيفي / الهوية:</label>
+          <input type="text" id="employeeIdInput" required placeholder="مثال: EMP-101">
+        </div>
+
+        <!-- معينة الكاميرا -->
+        <div style="text-align: center; margin-bottom: 15px; position: relative;">
+          <video id="webcamVideo" autoplay playsinline style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px; border: 2px solid var(--primary-blue); background: #000;"></video>
+          <canvas id="faceCanvas" style="display: none;"></canvas>
+        </div>
+
+        <div style="margin-bottom: 15px; display: flex; justify-content: center; gap: 10px;">
+          <button type="button" class="btn-filter" style="background:#2980b9;" onclick="captureFaceSnapshot()">📸 التقاط بصمة الوجه</button>
+        </div>
+
+        <div id="captureStatus" style="font-size: 12px; text-align: center; font-weight: bold; margin-bottom: 10px; color: #27ae60;"></div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">حفظ بصمة الوجه بـ Firebase</button>
+          <button type="button" class="btn-cancel" onclick="closeAddFaceModal()">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- قسم داتا قديمة -->
       <div id="section-olddata" class="tab-content">
@@ -681,6 +758,9 @@
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
                   <input type="checkbox" id="perm_users" value="section-users"> 🧑‍💼 إدارة المستخدمين
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                  <input type="checkbox" id="perm_olddata" value="section-olddata"> 📁 إدارة البيانات القديمة
                 </label>
               </div>
 
