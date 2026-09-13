@@ -116,7 +116,7 @@
 
           <div class="stat-card">
             <div class="stat-icon-wrapper green-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 1 0 7.75"></path></svg>
             </div>
             <div class="stat-info">
               <h4>السير الذاتية المعروضة</h4>
@@ -253,82 +253,107 @@
       </div>
 
       <!-- قسم الحضور وبصمة الوجه -->
-<div id="attendanceTab" class="tab-content">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <h2>📅 نظام الحضور والتحضير ببصمة الوجه واللوكيشن</h2>
-    <button class="btn-filter" style="padding: 10px 18px;" onclick="openAddFaceModal()">➕ إضافة بصمة وجه موظف</button>
-  </div>
-
-  <div class="add-product-section">
-    <h3>تسجيل حضور/انصراف موظف (مسح وجه حي)</h3>
-    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
-      <button class="btn-filter" style="background-color: #27ae60;" onclick="takeAttendanceScan('check-in')">📷 تسجيل حضور الآن</button>
-      <button class="btn-filter" style="background-color: #e74c3c;" onclick="takeAttendanceScan('check-out')">🚪 تسجيل انصراف الآن</button>
-    </div>
-    <div id="attendanceLocationStatus" style="font-size: 13px; color: #555; font-weight: bold;"></div>
-  </div>
-
-  <!-- جدول سجل الحضور اليومي -->
-  <div class="recent-orders">
-    <h3>سجل الحضور والغياب للعمالة والموظفين</h3>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>صورة البصمة</th>
-          <th>اسم الموظف</th>
-          <th>نوع الحركة</th>
-          <th>التاريخ والوقت</th>
-          <th>الموقع الجغرافي</th>
-          <th>حالة المطابقة</th>
-        </tr>
-      </thead>
-      <tbody id="attendanceLogsTableBody">
-        <tr><td colspan="6">جاري تحميل سجل الحضور...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Modal: إضافة بصمة وجه موظف جديد -->
-<div id="addFaceModal" class="modal-overlay">
-  <div class="modal-box" style="max-width: 500px;">
-    <div class="modal-header">
-      <h3>إضافة بصمة وجه موظف جديد</h3>
-      <span class="close-btn" onclick="closeAddFaceModal()">&times;</span>
-    </div>
-    <div class="modal-form-body">
-      <form id="addFaceForm">
-        <div style="margin-bottom: 12px;">
-          <label style="font-size:12px; font-weight:bold;">اسم الموظف / العامل:</label>
-          <input type="text" id="employeeNameInput" required placeholder="أدخل اسم الموظف الكامل">
-        </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size:12px; font-weight:bold;">الرقم الوظيفي / الهوية:</label>
-          <input type="text" id="employeeIdInput" required placeholder="مثال: EMP-101">
+      <div id="attendanceTab" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2>📅 نظام الحضور والتحضير ببصمة الوجه واللوكيشن</h2>
+          <button class="btn-filter" style="padding: 10px 18px;" onclick="openAddFaceModal()">➕ إضافة بصمة وجه موظف</button>
         </div>
 
-        <!-- معينة الكاميرا -->
-        <div style="text-align: center; margin-bottom: 15px; position: relative;">
-          <video id="webcamVideo" autoplay playsinline style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px; border: 2px solid var(--primary-blue); background: #000;"></video>
-          <canvas id="faceCanvas" style="display: none;"></canvas>
+        <div class="add-product-section">
+          <h3>تسجيل حضور/انصراف موظف (مسح وجه حي واشتراط الموقع)</h3>
+          <p style="font-size: 12px; color: #777; margin-bottom: 12px;">يجب أن تكون في نطاق 200 متر من إحداثيات المكتب المسجلة لتسجيل الحضور أو الانصراف.</p>
+          <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+            <button class="btn-filter" style="background-color: #27ae60;" onclick="openScanCameraModal('check-in')">📷 تسجيل حضور الآن</button>
+            <button class="btn-filter" style="background-color: #e74c3c;" onclick="openScanCameraModal('check-out')">🚪 تسجيل انصراف الآن</button>
+          </div>
+          <div id="attendanceLocationStatus" style="font-size: 13px; color: #555; font-weight: bold;"></div>
         </div>
 
-        <div style="margin-bottom: 15px; display: flex; justify-content: center; gap: 10px;">
-          <button type="button" class="btn-filter" style="background:#2980b9;" onclick="captureFaceSnapshot()">📸 التقاط بصمة الوجه</button>
+        <!-- جدول سجل الحضور اليومي (آخر 10 تسجيلات) -->
+        <div class="recent-orders">
+          <h3>سجل الحضور والغياب للعمالة والموظفين (آخر 10 تسجيلات)</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>صورة البصمة الحية</th>
+                <th>اسم الموظف</th>
+                <th>نوع الحركة</th>
+                <th>التاريخ والوقت</th>
+                <th>الموقع الجغرافي والمسافة</th>
+                <th>حالة المطابقة</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceLogsTableBody">
+              <tr><td colspan="6">جاري تحميل سجل الحضور...</td></tr>
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        <div id="captureStatus" style="font-size: 12px; text-align: center; font-weight: bold; margin-bottom: 10px; color: #27ae60;"></div>
+      <!-- Modal: إضافة بصمة وجه موظف جديد -->
+      <div id="addFaceModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3>إضافة بصمة وجه موظف جديد</h3>
+            <span class="close-btn" onclick="closeAddFaceModal()">&times;</span>
+          </div>
+          <div class="modal-form-body">
+            <form id="addFaceForm">
+              <div style="margin-bottom: 12px;">
+                <label style="font-size:12px; font-weight:bold;">اسم الموظف / العامل:</label>
+                <input type="text" id="employeeNameInput" required placeholder="أدخل اسم الموظف الكامل">
+              </div>
+              <div style="margin-bottom: 12px;">
+                <label style="font-size:12px; font-weight:bold;">الرقم الوظيفي / الهوية:</label>
+                <input type="text" id="employeeIdInput" required placeholder="مثال: EMP-101">
+              </div>
 
-        <div class="modal-actions">
-          <button type="submit" class="btn-submit">حفظ بصمة الوجه بـ Firebase</button>
-          <button type="button" class="btn-cancel" onclick="closeAddFaceModal()">إلغاء</button>
+              <!-- معاينة الكاميرا -->
+              <div style="text-align: center; margin-bottom: 15px; position: relative;">
+                <video id="webcamVideo" autoplay playsinline style="width: 100%; height: 220px; object-fit: cover; border-radius: 8px; border: 2px solid var(--primary-blue); background: #000;"></video>
+                <canvas id="faceCanvas" style="display: none;"></canvas>
+              </div>
+
+              <div style="margin-bottom: 15px; display: flex; justify-content: center; gap: 10px;">
+                <button type="button" class="btn-filter" style="background:#2980b9;" onclick="captureFaceSnapshot()">📸 التقاط بصمة الوجه الأساسية</button>
+              </div>
+
+              <div id="captureStatus" style="font-size: 12px; text-align: center; font-weight: bold; margin-bottom: 10px; color: #27ae60;"></div>
+
+              <div class="modal-actions">
+                <button type="submit" class="btn-submit">حفظ بصمة الوجه بـ Firebase</button>
+                <button type="button" class="btn-cancel" onclick="closeAddFaceModal()">إلغاء</button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-</div>
+      </div>
 
-<!-- قسم داتا قديمة -->
+      <!-- Modal: مسح الوجه الحي لتسجيل الحضور/الانصراف -->
+      <div id="scanCameraModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3 id="scanModalTitle">مسح الوجه لتسجيل الحضور</h3>
+            <span class="close-btn" onclick="closeScanCameraModal()">&times;</span>
+          </div>
+          <div class="modal-form-body" style="text-align: center;">
+            <p style="font-size: 13px; color: #555; margin-bottom: 10px;">انظر إلى الكاميرا مباشرة لالتقاط صورتك الحية والتحقق من موقعك</p>
+            <div style="position: relative; margin-bottom: 15px;">
+              <video id="scanWebcamVideo" autoplay playsinline style="width: 100%; height: 240px; object-fit: cover; border-radius: 8px; border: 2px solid #27ae60; background: #000;"></video>
+              <canvas id="scanFaceCanvas" style="display: none;"></canvas>
+            </div>
+
+            <div id="scanModalStatus" style="font-size: 13px; font-weight: bold; margin-bottom: 15px; min-height: 20px;"></div>
+
+            <div class="modal-actions" style="justify-content: center;">
+              <button type="button" class="btn-submit" style="background-color: #27ae60;" onclick="submitAttendanceWithLiveScan()">📸 التقاط الصورة وإكمال التحضير</button>
+              <button type="button" class="btn-cancel" onclick="closeScanCameraModal()">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- قسم داتا قديمة -->
       <div id="section-olddata" class="tab-content">
         <section class="recent-orders">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -349,9 +374,7 @@
             </tbody>
           </table>
 
-          <!-- إضافة شريط الترقيم تحت الجدول مباشرة -->
           <div id="oldDataPagination"></div>
-
         </section>
       </div>
 
@@ -362,9 +385,7 @@
             <h3>تفاصيل الطلب القديم الكاملة</h3>
             <span class="close-btn" onclick="closeOldDataDetailsModal()">&times;</span>
           </div>
-          <div class="modal-form-body" id="oldDataDetailsContent" style="padding: 15px;">
-            <!-- يتم تعبئة كافة التفاصيل هنا ديناميكياً -->
-          </div>
+          <div class="modal-form-body" id="oldDataDetailsContent" style="padding: 15px;"></div>
           <div class="modal-actions" style="margin-top: 15px;">
             <button type="button" class="btn-cancel" onclick="closeOldDataDetailsModal()">إغلاق</button>
           </div>
@@ -397,6 +418,8 @@
               <tr><td colspan="6">جاري تحميل الطلبات...</td></tr>
             </tbody>
           </table>
+
+          <div id="ordersPagination" class="pagination-wrapper"></div>
         </section>
       </div>
 
@@ -423,6 +446,8 @@
               <tr><td colspan="7">جاري تحميل طلبات المتابعة...</td></tr>
             </tbody>
           </table>
+
+          <div id="trackingPagination" class="pagination-wrapper"></div>
         </section>
       </div>
 
@@ -445,9 +470,11 @@
               </tr>
             </thead>
             <tbody id="archiveTableBody">
-              <tr><td colspan="5">جاري تحميل الأرشيف...</td></tr>
+              <tr><td colspan="6">جاري تحميل الأرشيف...</td></tr>
             </tbody>
           </table>
+
+          <div id="archivePagination" class="pagination-wrapper"></div>
         </section>
       </div>
 
@@ -630,6 +657,8 @@
               <tr><td colspan="9">جاري تحميل السير الذاتية...</td></tr>
             </tbody>
           </table>
+
+          <div id="cvsPagination" class="pagination-wrapper"></div>
         </section>
       </div>
 
@@ -671,6 +700,8 @@
               <tr><td colspan="9">جاري تحميل أرشيف السيفيات...</td></tr>
             </tbody>
           </table>
+
+          <div id="cvArchivePagination" class="pagination-wrapper"></div>
         </section>
       </div>
 

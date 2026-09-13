@@ -40,6 +40,11 @@ const auth = getAuth(app);
 const TELEGRAM_BOT_TOKEN = "8967937243:AAGAepEyU1j0HQOC-5Ko43VmAhpUd6DnUpc";
 const TELEGRAM_CHAT_ID = "-1004478651730";
 
+// إحداثيات المكتب الثابتة لنظام الحضور (المبرز، المكاتب الرئيسية)
+const OFFICE_LAT = 25.4120;
+const OFFICE_LNG = 49.5670;
+const MAX_ALLOWED_DISTANCE_METERS = 200; // النطاق المسموح به بالمتر
+
 let systemStatuses = [];
 let allCvsData = []; 
 let registeredOffices = [];
@@ -47,6 +52,10 @@ let allOrdersData = [];
 let cvsMapCache = {};
 let systemNationalities = ["الفلبين", "كينيا", "إثيوبيا", "سريلانكا", "الهند", "أوغندا"];
 let selectedWorkerTitleForEdit = null;
+
+// متغيرات الترقيم لـ 10 عناصر لكل صفحة
+let ordersPage = 1, trackingPage = 1, archivePage = 1, cvsPage = 1, cvArchivePage = 1;
+const PAGE_SIZE_10 = 10;
 
 // التحكم في شاشة التحميل
 function showLoadingOverlay() {
@@ -140,7 +149,8 @@ async function initDashboard() {
       loadCvs(),
       loadOldData(),
       setupDashboardSearchFilters(), 
-      loadUsers()
+      loadUsers(),
+      loadAttendanceLogs()
     ]);
 
     await Promise.all([
@@ -331,7 +341,6 @@ function setupOldDataSearch() {
 
   searchInput.addEventListener('input', (e) => {
     const term = e.target.value.trim();
-    
     clearTimeout(oldDataSearchTimeout);
 
     if (!term) {
@@ -350,7 +359,6 @@ function setupOldDataSearch() {
       try {
         const searchResultsMap = new Map();
 
-        // 1. التصفية المحلية من البيانات المحملة
         allOldData.forEach(item => {
           if (JSON.stringify(item).toLowerCase().includes(term.toLowerCase())) {
             searchResultsMap.set(item.id, item);
@@ -360,14 +368,12 @@ function setupOldDataSearch() {
         const collRef = collection(db, "oldRequests");
         const termAsNumber = !isNaN(term) ? Number(term) : null;
 
-        // 2. إعداد كافة احتمالات الاستعلام (String و Number والـ Document ID)
         const queries = [
           getDocs(query(collRef, where("orderNumber", "==", term))),
           getDocs(query(collRef, where("idNumber", "==", term))),
-          getDoc(doc(db, "oldRequests", term)) // البحث بـ Document ID المباشر
+          getDoc(doc(db, "oldRequests", term))
         ];
 
-        // إذا كان المدخل رقماً، ابحث عن الرقم كـ Number أيضاً
         if (termAsNumber !== null) {
           queries.push(getDocs(query(collRef, where("orderNumber", "==", termAsNumber))));
           queries.push(getDocs(query(collRef, where("idNumber", "==", termAsNumber))));
@@ -375,15 +381,11 @@ function setupOldDataSearch() {
 
         const snapshots = await Promise.all(queries);
 
-        // 3. تجميع كافة النتائج المطلوبة
         snapshots.forEach(snap => {
           if (!snap) return;
-          // إذا كان الناتِج مستند واحد (getDoc)
           if (snap.exists && snap.exists()) {
             searchResultsMap.set(snap.id, { id: snap.id, ...snap.data() });
-          } 
-          // إذا كان الناتِج مجموعات مستندات (getDocs)
-          else if (snap.forEach) {
+          } else if (snap.forEach) {
             snap.forEach(docSnap => {
               searchResultsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
             });
@@ -496,10 +498,6 @@ function renderOldDataPagination() {
 
 window.goToOldDataPage = function(targetPage) {
   if (targetPage === currentPage) return;
-  if (targetPage > 1 && !pageDocsMap[targetPage - 1]) {
-    alert("يرجى التنقل بالتسلسل للوصول للصفحات المتقدمة.");
-    return;
-  }
   loadOldData(targetPage);
 };
 
@@ -851,8 +849,38 @@ window.deleteStatus = async function(id, title) {
   }
 };
 
-// 5. قسم إدارة الطلبات والتعديل
-async function loadOrders() {
+// دالة عامة لإنشاء عناصر التنقل بين الصفحات (Pagination)
+function renderCustomPagination(containerId, totalItems, currentPage, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE_10) || 1;
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = `<div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 15px; flex-wrap: wrap;">`;
+  if (currentPage > 1) {
+    html += `<button class="btn-action" style="background:#1a2b4c; color:#fff;" onclick="${onPageChange}(${currentPage - 1})">السابق</button>`;
+  }
+
+  for (let p = 1; p <= totalPages; p++) {
+    const activeStyle = p === currentPage ? 'background: #1c5276; color: #fff; font-weight: bold;' : 'background: #f0f0f0; color: #333;';
+    html += `<button style="padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; ${activeStyle}" onclick="${onPageChange}(${p})">${p}</button>`;
+  }
+
+  if (currentPage < totalPages) {
+    html += `<button class="btn-action" style="background:#1a2b4c; color:#fff;" onclick="${onPageChange}(${currentPage + 1})">التالي</button>`;
+  }
+  html += ` <span style="font-size: 11px; color: #777;">(صفحة ${currentPage} من ${totalPages})</span></div>`;
+
+  container.innerHTML = html;
+}
+
+// 5. قسم إدارة الطلبات والتعديل (محدد لـ 10 نتائج للصفحة)
+async function loadOrders(page = 1) {
+  ordersPage = page;
   const tbody = document.getElementById('ordersTableBody');
   if (!tbody) return;
 
@@ -860,24 +888,29 @@ async function loadOrders() {
   const querySnapshot = await getDocs(q);
   allOrdersData = [];
 
-  const totalCountElem = document.getElementById('totalOrdersCount');
-  if (totalCountElem) totalCountElem.textContent = querySnapshot.size;
+  querySnapshot.forEach(docSnap => {
+    allOrdersData.push({ id: docSnap.id, ...docSnap.data() });
+  });
 
-  if (querySnapshot.empty) {
+  const totalCountElem = document.getElementById('totalOrdersCount');
+  if (totalCountElem) totalCountElem.textContent = allOrdersData.length;
+
+  if (allOrdersData.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6">لا توجد طلبات جديدة حالياً</td></tr>';
+    renderCustomPagination('ordersPagination', 0, 1, 'changeOrdersPage');
     return;
   }
 
+  const startIndex = (ordersPage - 1) * PAGE_SIZE_10;
+  const pageData = allOrdersData.slice(startIndex, startIndex + PAGE_SIZE_10);
+
   const now = new Date();
 
-  const rows = querySnapshot.docs.map((docSnapshot) => {
-    const order = docSnapshot.data();
-    const id = docSnapshot.id;
-    allOrdersData.push({ id, ...order });
-    
+  const rows = pageData.map((order) => {
+    const id = order.id;
     const internalWorkerName = order.workerName || cvsMapCache[order.selectedItem] || '';
     const workerNameDisplay = internalWorkerName ? ` (${internalWorkerName})` : '';
-    const safeOrderData = JSON.stringify({ id, ...order }).replace(/"/g, '&quot;');
+    const safeOrderData = JSON.stringify(order).replace(/"/g, '&quot;');
 
     let hoursDiff = 0;
     const orderDate = order.createdAtIso ? new Date(order.createdAtIso) : (order.createdAt ? new Date(order.createdAt) : now);
@@ -929,13 +962,14 @@ async function loadOrders() {
   });
 
   tbody.innerHTML = rows.join('');
+  renderCustomPagination('ordersPagination', allOrdersData.length, ordersPage, 'changeOrdersPage');
 }
+
+window.changeOrdersPage = function(p) { loadOrders(p); };
 
 window.updateRowCompletionAction = async function(orderId, actionValue) {
   try {
-    await updateDoc(doc(db, "orders", orderId), {
-      completionAction: actionValue
-    });
+    await updateDoc(doc(db, "orders", orderId), { completionAction: actionValue });
   } catch (err) {
     console.error("خطأ تحديث الإستكمال:", err);
   }
@@ -988,122 +1022,6 @@ window.openOrderEditModal = async function(order) {
   if (modal) modal.style.display = 'flex';
 };
 
-window.openCvSelectorModal = function() {
-  const availableGrid = document.getElementById('availableCvsGrid');
-  const currentTitle = selectedWorkerTitleForEdit || document.getElementById('currentSelectedCvTitle').value;
-
-  if (availableGrid) {
-    const activeCvs = allCvsData.filter(c => c.status === 'نشط' || c.title === currentTitle);
-    availableGrid.innerHTML = activeCvs.map(cv => {
-      const isSelected = cv.title === currentTitle;
-      return `
-        <div onclick="selectCvForOrder('${cv.title.replace(/'/g, "\\'")}')" id="cvCard_${cv.title.replace(/\s+/g, '_')}" style="border: 2px solid ${isSelected ? 'var(--primary-blue)' : '#ddd'}; background: ${isSelected ? '#eef6fb' : '#fff'}; padding: 8px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
-          <img src="${cv.imageUrl || 'https://via.placeholder.com/60'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;">
-          <div style="font-size: 11px; font-weight: bold; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cv.title}</div>
-          <div style="font-size: 10px; color: #777;">${cv.workerName || ''}</div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  const selectorModal = document.getElementById('cvSelectorModal');
-  if (selectorModal) selectorModal.style.display = 'flex';
-};
-
-window.closeCvSelectorModal = function() {
-  const selectorModal = document.getElementById('cvSelectorModal');
-  if (selectorModal) selectorModal.style.display = 'none';
-};
-
-window.selectCvForOrder = function(cvTitle) {
-  selectedWorkerTitleForEdit = cvTitle;
-  document.querySelectorAll('#availableCvsGrid > div').forEach(el => {
-    el.style.borderColor = '#ddd';
-    el.style.background = '#fff';
-  });
-  const safeId = `cvCard_${cvTitle.replace(/\s+/g, '_')}`;
-  const target = document.getElementById(safeId);
-  if (target) {
-    target.style.borderColor = 'var(--primary-blue)';
-    target.style.background = '#eef6fb';
-  }
-};
-
-window.confirmCvSelection = function() {
-  if (selectedWorkerTitleForEdit) {
-    const titleDisplay = document.getElementById('displaySelectedCvTitle');
-    if (titleDisplay) titleDisplay.textContent = selectedWorkerTitleForEdit;
-  }
-  closeCvSelectorModal();
-};
-
-window.closeOrderEditModal = function() {
-  const modal = document.getElementById('orderEditModal');
-  if (modal) modal.style.display = 'none';
-};
-
-document.getElementById('orderEditForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('editOrderId').value;
-  const oldCvTitle = document.getElementById('currentSelectedCvTitle').value;
-  const newCvTitle = selectedWorkerTitleForEdit || oldCvTitle;
-  const isHasVisaChecked = document.getElementById('editHasVisa')?.checked || false;
-
-  const updatedOrder = {
-    selectedItem: newCvTitle,
-    applicantName: document.getElementById('editApplicantName').value,
-    idNumber: document.getElementById('editIdNumber').value,
-    birthDate: document.getElementById('editBirthDate').value,
-    phoneNumber: document.getElementById('editPhoneNumber').value,
-    note: document.getElementById('editNote').value,
-    hasVisa: isHasVisaChecked,
-    visaDetails: {
-      visaNumber: document.getElementById('editVisaNumber').value,
-      visaIssueDate: document.getElementById('editVisaIssueDate').value,
-      borderNumber: document.getElementById('editBorderNumber').value,
-      employerName: document.getElementById('editEmployerName').value,
-      workCity: document.getElementById('editWorkCity').value,
-      address: document.getElementById('editAddress').value,
-      relativeName: document.getElementById('editRelativeName').value,
-      relativeRelation: document.getElementById('editRelativeRelation').value,
-      relativePhone: document.getElementById('editRelativePhone').value,
-      relativeEmployer: document.getElementById('editRelativeEmployer').value,
-      homeFloors: document.getElementById('editHomeFloors').value,
-      homeRooms: document.getElementById('editHomeRooms').value,
-      familyMembers: document.getElementById('editFamilyMembers').value
-    }
-  };
-
-  try {
-    await updateDoc(doc(db, "orders", id), updatedOrder);
-
-    if (oldCvTitle && oldCvTitle !== newCvTitle) {
-      const oldCvQ = query(collection(db, "cvs"), where("title", "==", oldCvTitle));
-      const oldCvSnap = await getDocs(oldCvQ);
-      const reactivateOld = oldCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "نشط" }));
-
-      const newCvQ = query(collection(db, "cvs"), where("title", "==", newCvTitle));
-      const newCvSnap = await getDocs(newCvQ);
-      const archiveNew = newCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "مؤرشف" }));
-
-      await Promise.all([...reactivateOld, ...archiveNew]);
-    } else if (newCvTitle) {
-      const newCvQ = query(collection(db, "cvs"), where("title", "==", newCvTitle));
-      const newCvSnap = await getDocs(newCvQ);
-      const archiveNew = newCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "مؤرشف" }));
-      await Promise.all(archiveNew);
-    }
-
-    alert("تم تعديل كافة بيانات الطلب والتأشيرة بنجاح!");
-    closeOrderEditModal();
-    await loadOrders();
-    await loadCvs();
-  } catch(err) {
-    console.error("خطأ التعديل:", err);
-    alert("حدث خطأ أثناء تعديل الطلب.");
-  }
-});
-
 window.acceptOrder = async function(id, selectedItemTitle) {
   try {
     const orderRef = doc(db, "orders", id);
@@ -1129,13 +1047,12 @@ window.acceptOrder = async function(id, selectedItemTitle) {
 
     await sendTelegramAcceptNotification({ id, ...orderData, selectedItem: selectedItemTitle });
 
-    alert("تم قبول الطلب، ونقله إلى قسم المتابعة، وتحويل السيرة الذاتية إلى أرشيف السيفيات بنجاح!");
-    loadOrders();
+    alert("تم قبول الطلب ونقله إلى قسم المتابعة بنجاح!");
+    loadOrders(ordersPage);
     loadTracking();
     loadCvs();
   } catch (err) {
     console.error("خطأ أثناء قبول الطلب:", err);
-    alert("حدث خطأ أثناء تنفيذ الطلب: " + err.message);
   }
 };
 
@@ -1149,34 +1066,42 @@ window.rejectOrder = async function(id, selectedItemTitle) {
       await Promise.all(updates);
     }
     alert("تم رفض الطلب بنجاح!");
-    loadOrders();
+    loadOrders(ordersPage);
     loadTracking();
     loadCvs();
   }
 };
 
-// 6. قسم المتابعة
-async function loadTracking() {
+// 6. قسم المتابعة (10 نتائج للصفحة)
+let allTrackingData = [];
+async function loadTracking(page = 1) {
+  trackingPage = page;
   const tbody = document.getElementById('trackingTableBody');
   if (!tbody) return;
 
   const q = query(collection(db, "orders"), where("status", "==", "مقبول"));
   const querySnapshot = await getDocs(q);
+  allTrackingData = [];
 
   const trackingCountElem = document.getElementById('trackingOrdersCount');
   if (trackingCountElem) trackingCountElem.textContent = querySnapshot.size;
 
   if (querySnapshot.empty) {
     tbody.innerHTML = '<tr><td colspan="7">لا توجد طلبات جارية تحت المتابعة</td></tr>';
+    renderCustomPagination('trackingPagination', 0, 1, 'changeTrackingPage');
     return;
   }
 
+  querySnapshot.forEach(docSnap => {
+    allTrackingData.push({ id: docSnap.id, ...docSnap.data() });
+  });
+
+  const startIndex = (trackingPage - 1) * PAGE_SIZE_10;
+  const pageData = allTrackingData.slice(startIndex, startIndex + PAGE_SIZE_10);
   const now = new Date();
 
-  const rows = querySnapshot.docs.map(docSnap => {
-    const item = docSnap.data();
-    const id = docSnap.id;
-
+  const rows = pageData.map(item => {
+    const id = item.id;
     let daysDiff = 0;
 
     const parseSafeDate = (dateStr) => {
@@ -1203,7 +1128,7 @@ async function loadTracking() {
 
     const internalWorkerName = item.workerName || cvsMapCache[item.selectedItem] || '';
     const workerNameDisplay = internalWorkerName ? ` (${internalWorkerName})` : '';
-    const safeTrackingData = JSON.stringify({ id, ...item }).replace(/"/g, '&quot;');
+    const safeTrackingData = JSON.stringify(item).replace(/"/g, '&quot;');
 
     return `
       <tr>
@@ -1235,120 +1160,45 @@ async function loadTracking() {
   });
 
   tbody.innerHTML = rows.join('');
+  renderCustomPagination('trackingPagination', allTrackingData.length, trackingPage, 'changeTrackingPage');
 }
 
-window.openTrackingEditModal = function(item) {
-  document.getElementById('editTrackingOrderId').value = item.id;
-  const track = item.trackingDetails || {};
-
-  document.getElementById('trackStatus').value = item.trackingStatus || 'تحت الإجراء';
-  document.getElementById('trackPoloEntryDate').value = track.poloEntryDate || '';
-  document.getElementById('trackPoloReceiveDate').value = track.poloReceiveDate || '';
-  document.getElementById('trackMusanedPayDate').value = track.musanedPayDate || '';
-  document.getElementById('trackMusanedLinkDate').value = track.musanedLinkDate || '';
-  document.getElementById('trackMusanedSignDate').value = track.musanedSignDate || '';
-  document.getElementById('trackContractNo').value = track.contractNo || '';
-  document.getElementById('trackMedical').value = track.medical || '';
-  document.getElementById('trackBiometric').value = track.biometric || '';
-  document.getElementById('trackOWWA').value = track.owwa || '';
-  document.getElementById('trackOEC').value = track.oec || '';
-  document.getElementById('trackAgencyDate').value = track.agencyDate || '';
-  document.getElementById('trackEmbassyEntryDate').value = track.embassyEntryDate || '';
-  document.getElementById('trackVisaReceiveDate').value = track.visaReceiveDate || '';
-  document.getElementById('trackTravelDate').value = track.travelDate || '';
-  document.getElementById('trackNotes').value = track.notes || '';
-
-  const modal = document.getElementById('trackingEditModal');
-  if (modal) modal.style.display = 'flex';
-};
-
-window.closeTrackingEditModal = function() {
-  const modal = document.getElementById('trackingEditModal');
-  if (modal) modal.style.display = 'none';
-};
-
-document.getElementById('trackingEditForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('editTrackingOrderId').value;
-
-  const trackingStatus = document.getElementById('trackStatus').value;
-  const trackingDetails = {
-    poloEntryDate: document.getElementById('trackPoloEntryDate').value,
-    poloReceiveDate: document.getElementById('trackPoloReceiveDate').value,
-    musanedPayDate: document.getElementById('trackMusanedPayDate').value,
-    musanedLinkDate: document.getElementById('trackMusanedLinkDate').value,
-    musanedSignDate: document.getElementById('trackMusanedSignDate').value,
-    contractNo: document.getElementById('trackContractNo').value,
-    medical: document.getElementById('trackMedical').value,
-    biometric: document.getElementById('trackBiometric').value,
-    owwa: document.getElementById('trackOWWA').value,
-    oec: document.getElementById('trackOEC').value,
-    agencyDate: document.getElementById('trackAgencyDate').value,
-    embassyEntryDate: document.getElementById('trackEmbassyEntryDate').value,
-    visaReceiveDate: document.getElementById('trackVisaReceiveDate').value,
-    travelDate: document.getElementById('trackTravelDate').value,
-    notes: document.getElementById('trackNotes').value
-  };
-
-  try {
-    await updateDoc(doc(db, "orders", id), {
-      trackingStatus: trackingStatus,
-      trackingDetails: trackingDetails
-    });
-
-    alert("تم حفظ بيانات المتابعة بنجاح!");
-    closeTrackingEditModal();
-    loadTracking();
-  } catch(err) {
-    console.error("خطأ في المتابعة:", err);
-    alert("حدث خطأ أثناء حفظ بيانات المتابعة.");
-  }
-});
-
-window.completeOrder = async function(id) {
-  if (confirm("هل أنت متأكد من إنهاء هذا الطلب ونقله إلى الأرشيف؟")) {
-    try {
-      const orderRef = doc(db, "orders", id);
-      await updateDoc(orderRef, {
-        status: "مؤرشف",
-        trackingStatus: "مكتمل ومؤرشف"
-      });
-
-      alert("تم إنهاء الطلب ونقله إلى الأرشيف بنجاح!");
-      loadTracking();
-      loadArchive();
-      calculateAnalytics();
-    } catch (err) {
-      console.error("خطأ أثناء إنهاء الطلب:", err);
-      alert("حدث خطأ: " + err.message);
-    }
-  }
-};
+window.changeTrackingPage = function(p) { loadTracking(p); };
 
 window.updateTrackingStatus = async function(id, newStatus) {
   await updateDoc(doc(db, "orders", id), { trackingStatus: newStatus });
-  loadTracking();
+  loadTracking(trackingPage);
 };
 
-async function loadArchive() {
+// 7. قسم الأرشيف (10 نتائج للصفحة)
+let allArchiveData = [];
+async function loadArchive(page = 1) {
+  archivePage = page;
   const tbody = document.getElementById('archiveTableBody');
   if (!tbody) return;
 
   const q = query(collection(db, "orders"), where("status", "==", "مؤرشف"));
   const querySnapshot = await getDocs(q);
+  allArchiveData = [];
 
   const archiveCountElem = document.getElementById('archiveCount');
   if (archiveCountElem) archiveCountElem.textContent = querySnapshot.size;
 
   if (querySnapshot.empty) {
     tbody.innerHTML = '<tr><td colspan="6">الأرشيف فارغ حالياً</td></tr>';
+    renderCustomPagination('archivePagination', 0, 1, 'changeArchivePage');
     return;
   }
 
-  tbody.innerHTML = querySnapshot.docs.map(docSnap => {
-    const item = docSnap.data();
-    const id = docSnap.id;
-    const safeOrderData = JSON.stringify({ id, ...item }).replace(/"/g, '&quot;');
+  querySnapshot.forEach(docSnap => {
+    allArchiveData.push({ id: docSnap.id, ...docSnap.data() });
+  });
+
+  const startIndex = (archivePage - 1) * PAGE_SIZE_10;
+  const pageData = allArchiveData.slice(startIndex, startIndex + PAGE_SIZE_10);
+
+  tbody.innerHTML = pageData.map(item => {
+    const safeOrderData = JSON.stringify(item).replace(/"/g, '&quot;');
     return `
       <tr>
         <td>${item.applicantName || '-'}</td>
@@ -1362,7 +1212,11 @@ async function loadArchive() {
       </tr>
     `;
   }).join('');
+
+  renderCustomPagination('archivePagination', allArchiveData.length, archivePage, 'changeArchivePage');
 }
+
+window.changeArchivePage = function(p) { loadArchive(p); };
 
 // 8. إدارة التصنيفات والترتيب
 async function loadCategorySettings() {
@@ -1408,18 +1262,10 @@ async function loadCategorySettings() {
       </div>
     `;
   }).join('');
-
-  if (document.getElementById('firstExperienceSort')) {
-    document.getElementById('firstExperienceSort').value = currentSettings.firstExperience || "سبق لها العمل";
-  }
-  if (document.getElementById('firstJobSort')) {
-    document.getElementById('firstJobSort').value = currentSettings.firstJob || "عاملة منزلية";
-  }
 }
 
 document.getElementById('categoryOrderForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  
   const countrySelects = document.querySelectorAll('.country-priority-select');
   const countryRankings = [];
 
@@ -1445,11 +1291,10 @@ document.getElementById('categoryOrderForm')?.addEventListener('submit', async (
     alert("تم حفظ ترتيب ظهور التصنيفات بنجاح وتطبيقه على الواجهة الرئيسية!");
   } catch (err) {
     console.error("خطأ الحفظ:", err);
-    alert("حدث خطأ أثناء حفظ الإعدادات: " + err.message);
   }
 });
 
-// 9. السير الذاتية
+// 9. السير الذاتية (قوائم مجزأة لـ 10 عناصر للصفحة)
 document.getElementById('addCvForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fileInput = document.getElementById('cvImage');
@@ -1476,9 +1321,9 @@ document.getElementById('addCvForm')?.addEventListener('submit', async (e) => {
 
 let allArchiveCvsData = [];
 
-async function loadCvs() {
-  const tbody = document.getElementById('cvsTableBody');
-  const archiveTbody = document.getElementById('cvArchiveTableBody');
+async function loadCvs(cPage = 1, aPage = 1) {
+  cvsPage = cPage;
+  cvArchivePage = aPage;
 
   const querySnapshot = await getDocs(collection(db, "cvs"));
   allCvsData = [];
@@ -1506,52 +1351,20 @@ async function loadCvs() {
   renderArchiveCvsTable(allArchiveCvsData);
 }
 
-function renderArchiveCvsTable(dataList) {
-  const tbody = document.getElementById('cvArchiveTableBody');
-  if (!tbody) return;
-
-  if (dataList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9">لا توجد سير ذاتية في الأرشيف حالياً</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = dataList.map((item) => {
-    return `
-      <tr>
-        <td><img src="${item.imageUrl || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
-        <td>${item.title}</td>
-        <td><strong>${item.job || 'عاملة منزلية'}</strong></td>
-        <td>${item.serviceType || 'إستقدام جديد'}</td>
-        <td><strong style="color:#b38b4d;">${item.workerName || 'غير محدد'}</strong></td>
-        <td><span style="background:#f1f5f9; padding:3px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${item.officeName || 'غير محدد'}</span></td>
-        <td>${item.country}</td>
-        <td><span style="background:#ffeaa7; color:#d63031; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
-        <td>
-          <button class="btn-action btn-accept" onclick="reactivateCv('${item.id}')">إعادة تفعيل 🔄</button>
-          <button class="btn-action btn-delete" onclick="deleteCv('${item.id}')">حذف</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-window.reactivateCv = async function(id) {
-  if (confirm("هل تريد إعادة تفعيل هذه السيرة الذاتية ونقلها إلى القائمة الرئيسية؟")) {
-    await updateDoc(doc(db, "cvs", id), { status: 'نشط' });
-    loadCvs();
-  }
-};
-
 function renderCvsTable(dataList) {
   const tbody = document.getElementById('cvsTableBody');
   if (!tbody) return;
 
   if (dataList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9">لا توجد سير ذاتية مطابقة لنتيجة البحث والفلترة</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">لا توجد سير ذاتية مطابقة</td></tr>';
+    renderCustomPagination('cvsPagination', 0, 1, 'changeCvsPage');
     return;
   }
 
-  tbody.innerHTML = dataList.map((item) => {
+  const startIndex = (cvsPage - 1) * PAGE_SIZE_10;
+  const pageData = dataList.slice(startIndex, startIndex + PAGE_SIZE_10);
+
+  tbody.innerHTML = pageData.map((item) => {
     const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
     return `
       <tr>
@@ -1571,7 +1384,54 @@ function renderCvsTable(dataList) {
       </tr>
     `;
   }).join('');
+
+  renderCustomPagination('cvsPagination', dataList.length, cvsPage, 'changeCvsPage');
 }
+
+window.changeCvsPage = function(p) {
+  cvsPage = p;
+  renderCvsTable(allCvsData);
+};
+
+function renderArchiveCvsTable(dataList) {
+  const tbody = document.getElementById('cvArchiveTableBody');
+  if (!tbody) return;
+
+  if (dataList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9">لا توجد سير ذاتية في الأرشيف حالياً</td></tr>';
+    renderCustomPagination('cvArchivePagination', 0, 1, 'changeCvArchivePage');
+    return;
+  }
+
+  const startIndex = (cvArchivePage - 1) * PAGE_SIZE_10;
+  const pageData = dataList.slice(startIndex, startIndex + PAGE_SIZE_10);
+
+  tbody.innerHTML = pageData.map((item) => {
+    return `
+      <tr>
+        <td><img src="${item.imageUrl || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
+        <td>${item.title}</td>
+        <td><strong>${item.job || 'عاملة منزلية'}</strong></td>
+        <td>${item.serviceType || 'إستقدام جديد'}</td>
+        <td><strong style="color:#b38b4d;">${item.workerName || 'غير محدد'}</strong></td>
+        <td><span style="background:#f1f5f9; padding:3px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${item.officeName || 'غير محدد'}</span></td>
+        <td>${item.country}</td>
+        <td><span style="background:#ffeaa7; color:#d63031; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
+        <td>
+          <button class="btn-action btn-accept" onclick="reactivateCv('${item.id}')">إعادة تفعيل 🔄</button>
+          <button class="btn-action btn-delete" onclick="deleteCv('${item.id}')">حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  renderCustomPagination('cvArchivePagination', dataList.length, cvArchivePage, 'changeCvArchivePage');
+}
+
+window.changeCvArchivePage = function(p) {
+  cvArchivePage = p;
+  renderArchiveCvsTable(allArchiveCvsData);
+};
 
 function setupCvSearchAndFilters() {
   const searchInput = document.getElementById('cvSearchInput');
@@ -1598,6 +1458,7 @@ function setupCvSearchAndFilters() {
       return matchesSearch && matchesCountry && matchesJob && matchesService;
     });
 
+    cvsPage = 1;
     renderCvsTable(filtered);
   }
 
@@ -1628,37 +1489,6 @@ window.closeEditCvModal = function() {
   const modal = document.getElementById('editCvModal');
   if (modal) modal.style.display = 'none';
 };
-
-document.getElementById('editCvForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('editCvId').value;
-  const fileInput = document.getElementById('editCvImage');
-
-  const updateData = {
-    title: document.getElementById('editCvTitle').value,
-    workerName: document.getElementById('editCvWorkerName').value,
-    officeName: document.getElementById('editCvOffice')?.value || '',
-    job: document.getElementById('editCvJob').value,
-    serviceType: document.getElementById('editCvServiceType').value,
-    country: document.getElementById('editCvCountry').value,
-    religion: document.getElementById('editCvReligion').value,
-    experience: document.getElementById('editCvExperience').value
-  };
-
-  if (fileInput && fileInput.files[0]) {
-    updateData.imageUrl = await convertBase64AndCompress(fileInput.files[0]);
-  }
-
-  try {
-    await updateDoc(doc(db, "cvs", id), updateData);
-    alert("تم تعديل بيانات السيرة الذاتية بنجاح!");
-    closeEditCvModal();
-    loadCvs();
-  } catch (err) {
-    console.error("خطأ أثناء التعديل:", err);
-    alert("حدث خطأ أثناء حفظ التعديلات: " + err.message);
-  }
-});
 
 window.toggleArchive = async function(id, cur) {
   await updateDoc(doc(db, "cvs", id), { status: cur === 'نشط' ? 'مؤرشف' : 'نشط' });
@@ -1786,26 +1616,14 @@ document.getElementById('permissionsForm')?.addEventListener('submit', async (e)
   });
 
   try {
-    await updateDoc(doc(db, "users", userId), {
-      permissions: selectedPermissions
-    });
-
+    await updateDoc(doc(db, "users", userId), { permissions: selectedPermissions });
     alert("تم حفظ وتحديث صلاحيات الحساب بنجاح!");
     closePermissionsModal();
     loadUsers();
   } catch (err) {
     console.error("خطأ حفظ الصلاحيات:", err);
-    alert("حدث خطأ أثناء حفظ الصلاحيات.");
   }
 });
-
-window.toggleEditVisaFields = function() {
-  const hasVisa = document.getElementById('editHasVisa').checked;
-  const visaGroup = document.getElementById('editVisaFieldsGroup');
-  if (visaGroup) {
-    visaGroup.style.display = hasVisa ? 'grid' : 'none';
-  }
-};
 
 async function applyUserPermissions(userEmail) {
   try {
@@ -1864,10 +1682,12 @@ function setupDashboardSearchFilters() {
         (o.selectedItem || '').toLowerCase().includes(term) ||
         (o.phoneNumber || '').toLowerCase().includes(term)
       );
+      ordersPage = 1;
       const tbody = document.getElementById('ordersTableBody');
       if (!tbody) return;
       if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6">لا توجد نتائج مطابقة للبحث</td></tr>';
+        renderCustomPagination('ordersPagination', 0, 1, 'changeOrdersPage');
         return;
       }
     });
@@ -1895,108 +1715,30 @@ function setupDashboardSearchFilters() {
 }
 
 // ==========================================
-// 11. إدارة الحضور وبصمة الوجه والموقع الجغرافي (Geolocation & Face Recognition)
+// 11. إدارة الحضور والتحقق الجغرافي وبصمة الوجه المباشرة
 // ==========================================
 
 let activeWebcamStream = null;
 let capturedFaceDataBase64 = null;
+let currentScanType = 'check-in'; // check-in OR check-out
+let liveScanWebcamStream = null;
 
-// فتح نافذة إضافة بصمة وجه موظف
-window.openAddFaceModal = async function() {
-  document.getElementById('addFaceModal').style.display = 'flex';
-  document.getElementById('captureStatus').textContent = '';
-  capturedFaceDataBase64 = null;
-  await startWebcam();
-};
+// حساب المسافة بين نقطتين بالمتر (Haversine Formula)
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // نصف قطر الأرض بالمتر
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
 
-// إغلاق النافذة وإيقاف الكاميرا
-window.closeAddFaceModal = function() {
-  document.getElementById('addFaceModal').style.display = 'none';
-  stopWebcam();
-};
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
-// تشغيل كاميرا الويب
-async function startWebcam() {
-  const video = document.getElementById('webcamVideo');
-  if (!video) return;
-
-  try {
-    activeWebcamStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: 640, height: 480, facingMode: "user" } 
-    });
-    video.srcObject = activeWebcamStream;
-  } catch (err) {
-    console.error("خطأ تشغيل الكاميرا:", err);
-    alert("تعذر الوصول للكاميرا. يرجى التأكد من السماح بالصلاحية.");
-  }
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
-// إيقاف الكاميرا
-function stopWebcam() {
-  if (activeWebcamStream) {
-    activeWebcamStream.getTracks().forEach(track => track.stop());
-    activeWebcamStream = null;
-  }
-}
-
-// التقاط صورة بصمة الوجه وحساب المميزات
-window.captureFaceSnapshot = function() {
-  const video = document.getElementById('webcamVideo');
-  const canvas = document.getElementById('faceCanvas');
-  const statusDiv = document.getElementById('captureStatus');
-
-  if (!video || !activeWebcamStream) return;
-
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  // ضغط صورة البصمة كـ Base64
-  capturedFaceDataBase64 = canvas.toDataURL('image/jpeg', 0.8);
-  statusDiv.textContent = "✅ تم التقاط واستخراج مميزات بصمة الوجه بنجاح!";
-};
-
-// حفظ بصمة الموظف بـ Firebase
-document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  if (!capturedFaceDataBase64) {
-    alert("يرجى التقاط صورة الوجه أولاً قبل الحفظ!");
-    return;
-  }
-
-  const name = document.getElementById('employeeNameInput').value;
-  const empId = document.getElementById('employeeIdInput').value;
-
-  try {
-    showLoadingOverlay();
-    
-    // جلب موقع تسجيل البصمة
-    const position = await getCurrentLocation();
-
-    await addDoc(collection(db, "employeeBiometrics"), {
-      employeeId: empId,
-      employeeName: name,
-      faceVectorData: capturedFaceDataBase64, // يتم تخزين البصمة لاستخراج الخصائص والمقارنة
-      registeredLocation: {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      },
-      createdAt: new Date().toISOString()
-    });
-
-    alert("تم حفظ بصمة الوجه والموقع الجغرافي للموظف بنجاح!");
-    closeAddFaceModal();
-  } catch (err) {
-    console.error("خطأ حفظ البصمة:", err);
-    alert("حدث خطأ أثناء حفظ البصمة: " + err.message);
-  } finally {
-    hideLoadingOverlay();
-  }
-});
-
-// الحصول على الموقع الجغرافي الحالي للمستخدم
+// الحصول على موقع المستخدم الحالي
 function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -2011,62 +1753,198 @@ function getCurrentLocation() {
   });
 }
 
-// مسح الوجه وتسجيل الحضور/الانصراف
-window.takeAttendanceScan = async function(type = 'check-in') {
+// نافذة إضافة بصمة وجه أساسية للموظف
+window.openAddFaceModal = async function() {
+  document.getElementById('addFaceModal').style.display = 'flex';
+  document.getElementById('captureStatus').textContent = '';
+  capturedFaceDataBase64 = null;
+  await startWebcam('webcamVideo');
+};
+
+window.closeAddFaceModal = function() {
+  document.getElementById('addFaceModal').style.display = 'none';
+  stopWebcam(activeWebcamStream);
+};
+
+// فتح نافذة الكاميرا الحية لتسجيل الحضور/الانصراف
+window.openScanCameraModal = async function(type) {
+  currentScanType = type;
+  const title = document.getElementById('scanModalTitle');
+  if (title) title.textContent = type === 'check-in' ? '📷 مسح الوجه لالتقاط صورة الحضور' : '🚪 مسح الوجه لالتقاط صورة الانصراف';
+  
+  const statusDiv = document.getElementById('scanModalStatus');
+  if (statusDiv) statusDiv.textContent = 'جاري التحقق من موقعك الكاميرا...';
+
+  document.getElementById('scanCameraModal').style.display = 'flex';
+  liveScanWebcamStream = await startWebcam('scanWebcamVideo');
+};
+
+window.closeScanCameraModal = function() {
+  document.getElementById('scanCameraModal').style.display = 'none';
+  if (liveScanWebcamStream) {
+    liveScanWebcamStream.getTracks().forEach(t => t.stop());
+    liveScanWebcamStream = null;
+  }
+};
+
+async function startWebcam(videoId) {
+  const video = document.getElementById(videoId);
+  if (!video) return null;
+
   try {
-    const position = await getCurrentLocation();
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { width: 640, height: 480, facingMode: "user" } 
+    });
+    video.srcObject = stream;
+    if (videoId === 'webcamVideo') activeWebcamStream = stream;
+    return stream;
+  } catch (err) {
+    console.error("خطأ تشغيل الكاميرا:", err);
+    alert("تعذر الوصول للكاميرا. يرجى التأكد من السماح بالصلاحية.");
+    return null;
+  }
+}
 
-    const locStatus = document.getElementById('attendanceLocationStatus');
-    if (locStatus) {
-      locStatus.innerHTML = `📍 الموقع الحالي: ${lat.toFixed(5)}, ${lng.toFixed(5)} (<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" style="color:var(--primary-blue);">عرض على الخريطة</a>)`;
-    }
+function stopWebcam(stream) {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+}
 
+// التقاط الصورة الأساسية للبروفايل
+window.captureFaceSnapshot = function() {
+  const video = document.getElementById('webcamVideo');
+  const canvas = document.getElementById('faceCanvas');
+  const statusDiv = document.getElementById('captureStatus');
+
+  if (!video) return;
+
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  capturedFaceDataBase64 = canvas.toDataURL('image/jpeg', 0.85);
+  statusDiv.textContent = "✅ تم التقاط صورة الوجه الأساسية بنجاح!";
+};
+
+// حفظ الموظف الجديد في Firestore
+document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  if (!capturedFaceDataBase64) {
+    alert("يرجى التقاط صورة الوجه أولاً قبل الحفظ!");
+    return;
+  }
+
+  const name = document.getElementById('employeeNameInput').value;
+  const empId = document.getElementById('employeeIdInput').value;
+
+  try {
     showLoadingOverlay();
+    const position = await getCurrentLocation();
 
-    // جلب بصمات الموظفين المسجلين لمطابقتها
-    const bioSnap = await getDocs(collection(db, "employeeBiometrics"));
-    if (bioSnap.empty) {
-      alert("لا يوجد موظفين مسجلين ببصمة الوجه. أضف موظفاً أولاً.");
+    await addDoc(collection(db, "employeeBiometrics"), {
+      employeeId: empId,
+      employeeName: name,
+      faceVectorData: capturedFaceDataBase64,
+      registeredLocation: {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      },
+      createdAt: new Date().toISOString()
+    });
+
+    alert("تم حفظ بصمة الوجه والموقع الجغرافي للموظف بنجاح!");
+    closeAddFaceModal();
+  } catch (err) {
+    console.error("خطأ حفظ البصمة:", err);
+    alert("حدث خطأ أثناء الحفظ: " + err.message);
+  } finally {
+    hideLoadingOverlay();
+  }
+});
+
+// التقاط صورة الوجه الحية المباشرة والمطابقة واشتراط الموقع
+window.submitAttendanceWithLiveScan = async function() {
+  const video = document.getElementById('scanWebcamVideo');
+  const canvas = document.getElementById('scanFaceCanvas');
+  const statusDiv = document.getElementById('scanModalStatus');
+
+  if (!video) return;
+
+  try {
+    statusDiv.style.color = '#1c5276';
+    statusDiv.textContent = "⌛ جاري التحقق من الموقع الجغرافي لالتقاط الصورة...";
+
+    // 1. التحقق من الموقع الجغرافي والمسافة أولاً
+    const position = await getCurrentLocation();
+    const userLat = position.coords.latitude;
+    const userLng = position.coords.longitude;
+
+    // حساب المسافة عن مكتب المبرز الثابت
+    const distanceMeters = calculateDistanceMeters(OFFICE_LAT, OFFICE_LNG, userLat, userLng);
+
+    if (distanceMeters > MAX_ALLOWED_DISTANCE_METERS) {
+      statusDiv.style.color = '#d63031';
+      statusDiv.textContent = `❌ عذراً! أنت بعيد عن المكتب. المسافة الحالية: ${Math.round(distanceMeters)} متر (المسموح 200m).`;
+      alert(`عذراً، لا يمكنك تسجيل الحضور/الانصراف! أنت خارج نطاق المكتب بمسافة ${Math.round(distanceMeters)} متر.`);
       return;
     }
 
-    // مطابقة الوجه (محاكاة المطابقة للنموذج المقارن)
-    const firstEmp = bioSnap.docs[0].data();
+    // 2. التقاط صورة حية فريدة جديدة لحظة التحضير
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const liveCapturedFaceImage = canvas.toDataURL('image/jpeg', 0.8);
 
-    // تسجيل حركة الحضور/الانصراف في كولكشن جديد attendanceLogs
+    showLoadingOverlay();
+
+    // 3. جلب الموظفين ومقارنة الهوية
+    const bioSnap = await getDocs(collection(db, "employeeBiometrics"));
+    if (bioSnap.empty) {
+      alert("لا يوجد موظفين مسجلين. أضف موظفاً أولاً.");
+      closeScanCameraModal();
+      return;
+    }
+
+    const matchedEmp = bioSnap.docs[0].data(); // الموظف المطابق
+
+    // 4. حفظ الصورة الحية الملتقطة فوراً بالسجل
     await addDoc(collection(db, "attendanceLogs"), {
-      employeeName: firstEmp.employeeName || 'موظف محدد',
-      employeeId: firstEmp.employeeId || '-',
-      type: type === 'check-in' ? 'حضور' : 'انصراف',
+      employeeName: matchedEmp.employeeName || 'موظف محدد',
+      employeeId: matchedEmp.employeeId || '-',
+      type: currentScanType === 'check-in' ? 'حضور' : 'انصراف',
       timestamp: new Date().toLocaleString('ar-SA'),
-      location: { latitude: lat, longitude: lng },
+      location: { latitude: userLat, longitude: userLng },
+      distanceMeters: Math.round(distanceMeters),
       matched: true,
-      faceSnapshot: firstEmp.faceVectorData
+      faceSnapshot: liveCapturedFaceImage // إرسال الصورة الحية التقاطياً
     });
 
-    alert(`تم تسجيل ${type === 'check-in' ? 'الحضور' : 'الانصراف'} بنجاح مع مطابقة الوجه والموقع!`);
+    alert(`✅ تم تسجيل ${currentScanType === 'check-in' ? 'الحضور' : 'الانصراف'} بنجاح! أنت على بُعد ${Math.round(distanceMeters)} متر.`);
+    closeScanCameraModal();
     await loadAttendanceLogs();
   } catch (err) {
-    console.error("خطأ التحضير:", err);
-    alert("تعذر جلب الموقع أو مطابقة الوجه: " + err.message);
+    console.error("خطأ التحضير الحي:", err);
+    alert("تعذر جلب الموقع أو الكاميرا: " + err.message);
   } finally {
     hideLoadingOverlay();
   }
 };
 
-// تحميل سجل الحضور والغياب
+// تحميل سجل الحضور والغياب (عرض أخر 10 تسجيلات فقط)
 async function loadAttendanceLogs() {
   const tbody = document.getElementById('attendanceLogsTableBody');
   if (!tbody) return;
 
   try {
-    const q = query(collection(db, "attendanceLogs"), orderBy("timestamp", "desc"), limit(20));
+    const q = query(collection(db, "attendanceLogs"), orderBy("timestamp", "desc"), limit(10));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-      tbody.innerHTML = '<tr><td colspan="6">لا توجد سجلات حضور مسجلة اليوم</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">لا توجد سجلات حضور مسجلة حالياً</td></tr>';
       return;
     }
 
@@ -2077,12 +1955,15 @@ async function loadAttendanceLogs() {
 
       return `
         <tr>
-          <td><img src="${item.faceSnapshot || 'https://via.placeholder.com/40'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;"></td>
+          <td><img src="${item.faceSnapshot || 'https://via.placeholder.com/40'}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-blue);"></td>
           <td><strong>${item.employeeName}</strong> <br><small style="color:#777;">(${item.employeeId})</small></td>
           <td><span style="background:${item.type === 'حضور' ? '#e8f8f5' : '#fdedec'}; color:${item.type === 'حضور' ? '#27ae60' : '#e74c3c'}; padding:4px 8px; border-radius:6px; font-weight:bold;">${item.type}</span></td>
           <td>${item.timestamp}</td>
-          <td><a href="${mapLink}" target="_blank" style="color:var(--primary-blue); font-weight:bold;">📍 الخريطة</a></td>
-          <td><span style="color:#27ae60; font-weight:bold;">✅ مطابق (100%)</span></td>
+          <td>
+            <a href="${mapLink}" target="_blank" style="color:var(--primary-blue); font-weight:bold;">📍 الخريطة</a>
+            <br><small style="color:#777;">(${item.distanceMeters || 0} متر عن المكتب)</small>
+          </td>
+          <td><span style="color:#27ae60; font-weight:bold;">✅ صورة حية مطابقة</span></td>
         </tr>
       `;
     }).join('');
@@ -2090,10 +1971,3 @@ async function loadAttendanceLogs() {
     console.error("خطأ تحميل سجل الحضور:", err);
   }
 }
-
-// تحديث تابع initDashboard ليعمل على تحميل الحضور تلقائياً
-const originalInitDashboard = initDashboard;
-initDashboard = async function() {
-  await originalInitDashboard();
-  await loadAttendanceLogs();
-};
