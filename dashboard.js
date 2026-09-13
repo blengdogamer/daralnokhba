@@ -10,7 +10,11 @@ import {
   setDoc,
   getDoc,
   query, 
-  where 
+  where, 
+  limit,
+  startAfter,
+  orderBy,
+  getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
   getAuth, 
@@ -65,14 +69,14 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login.html";
   } else {
-    showLoadingOverlay(); // إظهار شاشة التحميل عند الدخول
+    showLoadingOverlay();
     try {
       await initDashboard();
       await applyUserPermissions(user.email);
     } catch (err) {
       console.error("خطأ أثناء إعداد اللوحة:", err);
     } finally {
-      hideLoadingOverlay(); // إخفاء شاشة التحميل فور الانتهاء من تحميل كل البيانات
+      hideLoadingOverlay();
     }
   }
 });
@@ -95,7 +99,6 @@ window.switchTab = function(tabId, event) {
 
   const currentUser = auth.currentUser;
   if (currentUser) {
-    // 1. إخفاء وإزالة تفعيل جميع الأقسام والروابط
     document.querySelectorAll('.tab-content').forEach(el => {
       el.classList.remove('active');
       el.style.display = 'none';
@@ -105,20 +108,17 @@ window.switchTab = function(tabId, event) {
       el.classList.remove('active');
     });
 
-    // 2. تفعيل وإظهار القسم المطلوب فقط
     const targetTab = document.getElementById(tabId);
     if (targetTab) {
       targetTab.classList.add('active');
       targetTab.style.display = 'block';
     }
 
-    // 3. تمييز الرابط النشط بالقائمة الجانبية
     const activeLink = document.querySelector(`.sidebar-nav a[onclick*="${tabId}"]`);
     if (activeLink) {
       activeLink.classList.add('active');
     }
 
-    // 4. إغلاق القائمة الجانبية تلقائياً على الهواتف
     if (window.innerWidth <= 768) {
       const sidebar = document.getElementById('mainSidebar');
       if (sidebar && !sidebar.classList.contains('collapsed')) {
@@ -138,6 +138,7 @@ async function initDashboard() {
       loadOffices(),
       loadCategorySettings(),
       loadCvs(),
+      loadOldData(),
       setupDashboardSearchFilters(), 
       loadUsers()
     ]);
@@ -149,6 +150,7 @@ async function initDashboard() {
     ]);
 
     setupCvSearchAndFilters();
+    setupOldDataSearch();
   } catch (err) {
     console.error("خطأ أثناء تحميل البيانات:", err);
   }
@@ -295,7 +297,7 @@ function convertBase64AndCompress(file, maxWidth = 900, maxHeight = 1200, qualit
         } else {
           if (height > maxHeight) {
             width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
+            width = maxHeight;
           }
         }
 
@@ -311,6 +313,302 @@ function convertBase64AndCompress(file, maxWidth = 900, maxHeight = 1200, qualit
     reader.onerror = (e) => reject(e);
   });
 }
+
+// ==========================================
+// إدارة قسم (داتا قديمة - oldRequests)
+// ==========================================
+
+let allOldData = [];
+let currentPage = 1;
+const pageSize = 10;
+let totalPages = 1;
+let pageDocsMap = {}; 
+let oldDataSearchTimeout = null;
+
+function setupOldDataSearch() {
+  const searchInput = document.getElementById('oldDataSearchInput');
+  if (!searchInput) return;
+
+  searchInput.addEventListener('input', (e) => {
+    const term = e.target.value.trim();
+    
+    clearTimeout(oldDataSearchTimeout);
+
+    if (!term) {
+      loadOldData(1);
+      return;
+    }
+
+    oldDataSearchTimeout = setTimeout(async () => {
+      const tbody = document.getElementById('oldDataTableBody');
+      const paginationContainer = document.getElementById('oldDataPagination');
+      if (!tbody) return;
+
+      tbody.innerHTML = '<tr><td colspan="3">جاري البحث في كافة السجلات...</td></tr>';
+      if (paginationContainer) paginationContainer.innerHTML = '';
+
+      try {
+        const searchResultsMap = new Map();
+
+        // 1. التصفية المحلية من البيانات المحملة
+        allOldData.forEach(item => {
+          if (JSON.stringify(item).toLowerCase().includes(term.toLowerCase())) {
+            searchResultsMap.set(item.id, item);
+          }
+        });
+
+        const collRef = collection(db, "oldRequests");
+        const termAsNumber = !isNaN(term) ? Number(term) : null;
+
+        // 2. إعداد كافة احتمالات الاستعلام (String و Number والـ Document ID)
+        const queries = [
+          getDocs(query(collRef, where("orderNumber", "==", term))),
+          getDocs(query(collRef, where("idNumber", "==", term))),
+          getDoc(doc(db, "oldRequests", term)) // البحث بـ Document ID المباشر
+        ];
+
+        // إذا كان المدخل رقماً، ابحث عن الرقم كـ Number أيضاً
+        if (termAsNumber !== null) {
+          queries.push(getDocs(query(collRef, where("orderNumber", "==", termAsNumber))));
+          queries.push(getDocs(query(collRef, where("idNumber", "==", termAsNumber))));
+        }
+
+        const snapshots = await Promise.all(queries);
+
+        // 3. تجميع كافة النتائج المطلوبة
+        snapshots.forEach(snap => {
+          if (!snap) return;
+          // إذا كان الناتِج مستند واحد (getDoc)
+          if (snap.exists && snap.exists()) {
+            searchResultsMap.set(snap.id, { id: snap.id, ...snap.data() });
+          } 
+          // إذا كان الناتِج مجموعات مستندات (getDocs)
+          else if (snap.forEach) {
+            snap.forEach(docSnap => {
+              searchResultsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+            });
+          }
+        });
+
+        const finalResults = Array.from(searchResultsMap.values());
+
+        if (finalResults.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3">لم يتم العثور على أي طلب برقم البحث المدخل</td></tr>';
+        } else {
+          renderOldDataTable(finalResults);
+        }
+      } catch (err) {
+        console.error("خطأ أثناء البحث في الداتا القديمة:", err);
+        tbody.innerHTML = '<tr><td colspan="3">حدث خطأ أثناء إجراء البحث</td></tr>';
+      }
+    }, 400);
+  });
+}
+
+async function loadOldData(page = 1) {
+  const tbody = document.getElementById('oldDataTableBody');
+  if (!tbody) return;
+
+  try {
+    tbody.innerHTML = '<tr><td colspan="3">جاري جلب الطلبات...</td></tr>';
+    currentPage = page;
+
+    const collRef = collection(db, "oldRequests");
+    const countSnapshot = await getCountFromServer(collRef);
+    const totalCount = countSnapshot.data().count;
+    totalPages = Math.ceil(totalCount / pageSize) || 1;
+
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    let q;
+    if (currentPage === 1) {
+      q = query(collRef, orderBy("__name__"), limit(pageSize));
+    } else if (pageDocsMap[currentPage - 1]) {
+      q = query(collRef, orderBy("__name__"), startAfter(pageDocsMap[currentPage - 1]), limit(pageSize));
+    } else {
+      currentPage = 1;
+      q = query(collRef, orderBy("__name__"), limit(pageSize));
+    }
+
+    const querySnapshot = await getDocs(q);
+    allOldData = [];
+
+    if (querySnapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="3">لا توجد طلبات سابقة مسجلة حالياً</td></tr>';
+      renderOldDataPagination();
+      return;
+    }
+
+    const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+    pageDocsMap[currentPage] = lastDoc;
+
+    querySnapshot.forEach((docSnap) => {
+      allOldData.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    renderOldDataTable(allOldData);
+    renderOldDataPagination();
+  } catch (err) {
+    console.error("خطأ تحميل الداتا القديمة:", err);
+    tbody.innerHTML = '<tr><td colspan="3">حدث خطأ أثناء تحميل البيانات</td></tr>';
+  }
+}
+
+function renderOldDataPagination() {
+  const container = document.getElementById('oldDataPagination');
+  if (!container) return;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = `<div style="display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 15px; flex-wrap: wrap;">`;
+
+  if (currentPage > 1) {
+    html += `<button class="btn-action" style="background:#1a2b4c; color:#fff;" onclick="loadOldData(${currentPage - 1})">السابق</button>`;
+  }
+
+  [1, 2].forEach(p => {
+    if (p <= totalPages) {
+      const activeStyle = p === currentPage ? 'background: #1c5276; color: #fff; font-weight: bold;' : 'background: #f0f0f0; color: #333;';
+      html += `<button style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; ${activeStyle}" onclick="goToOldDataPage(${p})">${p}</button>`;
+    }
+  });
+
+  if (currentPage < totalPages) {
+    html += `<button class="btn-action" style="background:#1a2b4c; color:#fff; cursor:pointer;" onclick="loadOldData(${currentPage + 1})">التالي</button>`;
+  }
+
+  html += `
+    <div style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
+      <span style="font-size: 12px; color: #555;">الذهاب إلى صفحة:</span>
+      <input type="number" id="customPageInput" min="1" max="${totalPages}" placeholder="رقم" style="width: 60px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
+      <button class="btn-action" style="background: #b38b4d; color: #fff;" onclick="submitJumpToPage()">انتقال</button>
+    </div>
+    <span style="font-size: 12px; color: #777;">(إجمالي الصفحات: ${totalPages})</span>
+  `;
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+window.goToOldDataPage = function(targetPage) {
+  if (targetPage === currentPage) return;
+  if (targetPage > 1 && !pageDocsMap[targetPage - 1]) {
+    alert("يرجى التنقل بالتسلسل للوصول للصفحات المتقدمة.");
+    return;
+  }
+  loadOldData(targetPage);
+};
+
+window.submitJumpToPage = function() {
+  const input = document.getElementById('customPageInput');
+  if (!input) return;
+  const pageNum = parseInt(input.value);
+
+  if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
+    alert(`يرجى إدخال رقم صفحة صحيح بين 1 و ${totalPages}`);
+    return;
+  }
+
+  goToOldDataPage(pageNum);
+};
+
+window.loadOldData = loadOldData;
+
+function renderOldDataTable(dataList) {
+  const tbody = document.getElementById('oldDataTableBody');
+  if (!tbody) return;
+
+  if (dataList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3">لا توجد نتائج مطابقة</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = dataList.map((item, index) => {
+    const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
+    const orderNumber = item.orderNumber || item.orderNo || item.idNumber || item.id || `REQ-${index + 1}`;
+    
+    return `
+      <tr>
+        <td><strong>${orderNumber}</strong></td>
+        <td>
+          <button class="btn-action btn-edit" onclick="viewOldDataDetails(${safeData})">👁️ عرض</button>
+        </td>
+        <td>
+          <button class="btn-action btn-delete" onclick="deleteOldData('${item.id}')">حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.viewOldDataDetails = function(data) {
+  const contentDiv = document.getElementById('oldDataDetailsContent');
+  if (!contentDiv) return;
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">';
+
+  const renderValue = (val) => {
+    if (val === null || val === undefined) return '-';
+    if (typeof val === 'object') {
+      return `<pre style="background:#f4f4f4; padding:5px; border-radius:4px; font-size:11px; margin:0;">${JSON.stringify(val, null, 2)}</pre>`;
+    }
+    if (typeof val === 'string' && val.startsWith('data:image')) {
+      return `<br><img src="${val}" style="max-width:100%; max-height:150px; border-radius:8px; margin-top:5px; object-fit:contain;">`;
+    }
+    return val;
+  };
+
+  const fieldLabels = {
+    id: "معرف المستند",
+    orderNumber: "رقم الطلب",
+    applicantName: "اسم العميل",
+    phoneNumber: "رقم الجوال",
+    idNumber: "رقم الهوية",
+    selectedItem: "السيرة الذاتية / العامل",
+    status: "الحالة",
+    createdAt: "تاريخ الطلب",
+    title: "العنوان",
+    workerName: "اسم العاملة",
+    officeName: "المكتب الخارجي",
+    job: "الوظيفة",
+    serviceType: "نوع الخدمة",
+    country: "الجنسية",
+    religion: "الديانة",
+    experience: "الخبرة"
+  };
+
+  for (const [key, value] of Object.entries(data)) {
+    const label = fieldLabels[key] || key;
+    html += `
+      <div style="border-bottom: 1px solid #eee; padding-bottom: 8px;">
+        <span style="font-weight: bold; color: var(--primary-color, #1a2b4c); font-size: 13px;">${label}:</span>
+        <div style="font-size: 13px; color: #333; margin-top: 2px;">${renderValue(value)}</div>
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  contentDiv.innerHTML = html;
+
+  const modal = document.getElementById('oldDataDetailsModal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeOldDataDetailsModal = function() {
+  const modal = document.getElementById('oldDataDetailsModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.deleteOldData = async function(id) {
+  if (confirm("هل أنت متأكد من حذف هذا العنصر من البيانات القديمة؟")) {
+    await deleteDoc(doc(db, "oldRequests", id));
+    loadOldData();
+  }
+};
 
 async function calculateAnalytics() {
   const querySnapshot = await getDocs(collection(db, "orders"));
@@ -663,7 +961,6 @@ window.openOrderEditModal = async function(order) {
   setVal('editPhoneNumber', order.phoneNumber);
   setVal('editNote', order.note);
 
-  // ضبط مربع الاختيار لتأشيرة العميل وتحديث إظهار/إخفاء الحقول
   const hasVisaCheckbox = document.getElementById('editHasVisa');
   if (hasVisaCheckbox) {
     hasVisaCheckbox.checked = !!order.hasVisa;
@@ -821,7 +1118,6 @@ window.acceptOrder = async function(id, selectedItemTitle) {
       trackingStatus: systemStatuses[0] || "تحت الإجراء"
     });
 
-    // تحديث حالة السيرة الذاتية إلى "تم الانتهاء" لترحيلها تلقائياً إلى أرشيف السيفيات
     if (selectedItemTitle) {
       const cvQuery = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
       const cvSnapshot = await getDocs(cvQuery);
@@ -881,21 +1177,20 @@ async function loadTracking() {
     const item = docSnap.data();
     const id = docSnap.id;
 
-let daysDiff = 0;
+    let daysDiff = 0;
 
-// تحويل الأرقام العربية الشرقيّة إلى إنجليزية إن وجدت
-const parseSafeDate = (dateStr) => {
-  if (!dateStr) return null;
-  if (typeof dateStr !== 'string') return new Date(dateStr);
-  const westernNumbers = dateStr.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
-  const d = new Date(westernNumbers);
-  return isNaN(d.getTime()) ? null : d;
-};
+    const parseSafeDate = (dateStr) => {
+      if (!dateStr) return null;
+      if (typeof dateStr !== 'string') return new Date(dateStr);
+      const westernNumbers = dateStr.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+      const d = new Date(westernNumbers);
+      return isNaN(d.getTime()) ? null : d;
+    };
 
-const acceptDate = parseSafeDate(item.acceptedAt) || parseSafeDate(item.createdAtIso) || parseSafeDate(item.createdAt) || new Date();
-const diffTime = Math.abs(now - acceptDate);
-daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-if (isNaN(daysDiff)) daysDiff = 0;
+    const acceptDate = parseSafeDate(item.acceptedAt) || parseSafeDate(item.createdAtIso) || parseSafeDate(item.createdAt) || new Date();
+    const diffTime = Math.abs(now - acceptDate);
+    daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (isNaN(daysDiff)) daysDiff = 0;
 
     let colorStyle = '#27ae60';
     if (daysDiff >= 31 && daysDiff <= 45) {
@@ -1034,7 +1329,6 @@ window.updateTrackingStatus = async function(id, newStatus) {
   await updateDoc(doc(db, "orders", id), { trackingStatus: newStatus });
   loadTracking();
 };
-
 
 async function loadArchive() {
   const tbody = document.getElementById('archiveTableBody');
@@ -1197,12 +1491,10 @@ async function loadCvs() {
     const id = docSnap.id;
     cvsMapCache[item.title] = item.workerName || '';
 
-    // إظهار السيفيات النشطة فقط في الجدول الرئيسي
     if (item.status === 'نشط') {
       active++;
       allCvsData.push({ id, ...item });
     } else {
-      // إرسال السيفيات المنتهية والمؤرشفة لقسم الأرشيف
       allArchiveCvsData.push({ id, ...item });
     }
   });
@@ -1353,7 +1645,7 @@ document.getElementById('editCvForm')?.addEventListener('submit', async (e) => {
     experience: document.getElementById('editCvExperience').value
   };
 
-  if (fileInput.files[0]) {
+  if (fileInput && fileInput.files[0]) {
     updateData.imageUrl = await convertBase64AndCompress(fileInput.files[0]);
   }
 
@@ -1433,7 +1725,6 @@ document.getElementById('addUserForm')?.addEventListener('submit', async (e) => 
   }
 });
 
-// دالة تحميل قائمة المسؤولين وعرض صلاحيات كل حساب
 async function loadUsers() {
   const tbody = document.getElementById('usersTableBody');
   if (!tbody) return;
@@ -1470,7 +1761,6 @@ async function loadUsers() {
   }
 }
 
-// فتح نافذة الصلاحيات وتحديد خانات الاختيار
 window.openPermissionsModal = function(userId, currentPermissions = []) {
   document.getElementById('permUserId').value = userId;
 
@@ -1486,7 +1776,6 @@ window.closePermissionsModal = function() {
   document.getElementById('permissionsModal').style.display = 'none';
 };
 
-// حفظ الصلاحيات المحددة في Firebase
 document.getElementById('permissionsForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const userId = document.getElementById('permUserId').value;
@@ -1518,7 +1807,6 @@ window.toggleEditVisaFields = function() {
   }
 };
 
-// دالة تطبيق الصلاحيات على المستخدم الحالي وإخفاء الأقسام غير المسموحة
 async function applyUserPermissions(userEmail) {
   try {
     const q = query(collection(db, "users"), where("email", "==", userEmail));
@@ -1528,10 +1816,8 @@ async function applyUserPermissions(userEmail) {
       const userData = snap.docs[0].data();
       const perms = userData.permissions || [];
 
-      // إذا كان مدير النظام (Admin) أو يمتلك جميع الصلاحيات (*) لا يتم إخفاء أي شيء
       if (userData.role === 'admin' || perms.includes('*')) return;
 
-      // 1. إخفاء أزرار القائمة الجانبية غير المصرح بها
       document.querySelectorAll('.sidebar-nav a.nav-link').forEach(link => {
         const onclickAttr = link.getAttribute('onclick') || '';
         const match = onclickAttr.match(/'([^']+)'/);
@@ -1543,7 +1829,6 @@ async function applyUserPermissions(userEmail) {
         }
       });
 
-      // 2. إخفاء جميع محتويات الأقسام (tab-content) غير المسموحة فورًا
       document.querySelectorAll('.tab-content').forEach(tab => {
         if (!perms.includes(tab.id)) {
           tab.classList.remove('active');
@@ -1551,7 +1836,6 @@ async function applyUserPermissions(userEmail) {
         }
       });
 
-      // 3. فتح أول قسم مسموح للمستخدم تلقائيًا
       if (perms.length > 0) {
         switchTab(perms[0]);
       } else {
@@ -1580,14 +1864,12 @@ function setupDashboardSearchFilters() {
         (o.selectedItem || '').toLowerCase().includes(term) ||
         (o.phoneNumber || '').toLowerCase().includes(term)
       );
-      // إعادة رسم الجدول بالنتائج المصفاة
       const tbody = document.getElementById('ordersTableBody');
       if (!tbody) return;
       if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6">لا توجد نتائج مطابقة للبحث</td></tr>';
         return;
       }
-      // (نفس قالب الصفوف المعرف في loadOrders)
     });
   }
 
