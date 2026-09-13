@@ -41,9 +41,9 @@ const TELEGRAM_BOT_TOKEN = "8967937243:AAGAepEyU1j0HQOC-5Ko43VmAhpUd6DnUpc";
 const TELEGRAM_CHAT_ID = "-1004478651730";
 
 // إحداثيات المكتب الثابتة لنظام الحضور (المبرز، المكاتب الرئيسية)
-const OFFICE_LAT = 25.4041;
-const OFFICE_LNG = 49.5583;
-const MAX_ALLOWED_DISTANCE_METERS = 200; // النطاق المسموح به بالمتر
+const OFFICE_LAT = 25.404126;
+const OFFICE_LNG = 49.558386;
+const MAX_ALLOWED_DISTANCE_METERS = 400; // النطاق المسموح به بالمتر
 
 let systemStatuses = [];
 let allCvsData = []; 
