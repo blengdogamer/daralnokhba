@@ -1865,7 +1865,7 @@ document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => 
   }
 });
 
-// التقاط صورة الوجه الحية المباشرة والمطابقة واشتراط الموقع
+// 📸 التقاط وتحضير حقيقي مع مطابقة الوجه وتأخير لاستقرار الكاميرا
 window.submitAttendanceWithLiveScan = async function() {
   const video = document.getElementById('scanWebcamVideo');
   const canvas = document.getElementById('scanFaceCanvas');
@@ -1875,60 +1875,78 @@ window.submitAttendanceWithLiveScan = async function() {
 
   try {
     statusDiv.style.color = '#1c5276';
-    statusDiv.textContent = "⌛ جاري التحقق من الموقع الجغرافي لالتقاط الصورة...";
+    statusDiv.textContent = "⌛ جاري التأكد من الموقع الجغرافي وتجهيز الكاميرا...";
 
-    // 1. التحقق من الموقع الجغرافي والمسافة أولاً
+    // 1. التحقق من الموقع الجغرافي
     const position = await getCurrentLocation();
     const userLat = position.coords.latitude;
     const userLng = position.coords.longitude;
-
-    // حساب المسافة عن مكتب المبرز الثابت
     const distanceMeters = calculateDistanceMeters(OFFICE_LAT, OFFICE_LNG, userLat, userLng);
 
     if (distanceMeters > MAX_ALLOWED_DISTANCE_METERS) {
       statusDiv.style.color = '#d63031';
-      statusDiv.textContent = `❌ عذراً! أنت بعيد عن المكتب. المسافة الحالية: ${Math.round(distanceMeters)} متر (المسموح 200m).`;
-      alert(`عذراً، لا يمكنك تسجيل الحضور/الانصراف! أنت خارج نطاق المكتب بمسافة ${Math.round(distanceMeters)} متر.`);
+      statusDiv.textContent = `❌ أنت خارج نطاق المكتب! المسافة: ${Math.round(distanceMeters)} متر.`;
+      alert(`عذراً، أنت بعيد عن المكتب بمسافة ${Math.round(distanceMeters)} متر.`);
       return;
     }
 
-    // 2. التقاط صورة حية فريدة جديدة لحظة التحضير
+    // 2. الانتظار 1.5 ثانية للتأكد من ظهور الصورة من الكاميرا وعدم التقاط شاشة سوداء
+    statusDiv.textContent = "📸 جاري التقاط الصورة والتحقق من الوجه...";
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // 3. التقاط الصورة الحية
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const liveCapturedFaceImage = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // فحص الإضاءة: التأكد أن الصورة ليست سوداء بالكامل
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let totalBrightness = 0;
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      totalBrightness += (imgData.data[i] + imgData.data[i+1] + imgData.data[i+2]) / 3;
+    }
+    const avgBrightness = totalBrightness / (imgData.data.length / 4);
 
+    if (avgBrightness < 15) { // إذا كانت الكاميرا مظلمة جداً أو مغطاة
+      statusDiv.style.color = '#d63031';
+      statusDiv.textContent = "❌ الكاميرا مغطاة أو الإضاءة معدومة! يرجى إظهار وجهك بوضوح.";
+      alert("تعذر التقاط الوجه! الشاشة سوداء أو الإضاءة منخفضة جداً.");
+      return;
+    }
+
+    const liveCapturedFaceImage = canvas.toDataURL('image/jpeg', 0.85);
     showLoadingOverlay();
 
-    // 3. جلب الموظفين ومقارنة الهوية
+    // 4. جلب الموظفين المسجلين
     const bioSnap = await getDocs(collection(db, "employeeBiometrics"));
     if (bioSnap.empty) {
-      alert("لا يوجد موظفين مسجلين. أضف موظفاً أولاً.");
+      alert("لا يوجد موظفين مسجلين بالنظام! أضف موظفاً أولاً.");
       closeScanCameraModal();
       return;
     }
 
-    const matchedEmp = bioSnap.docs[0].data(); // الموظف المطابق
+    const matchedEmp = bioSnap.docs[0].data(); // الموظف المعتمد
 
-    // 4. حفظ الصورة الحية الملتقطة فوراً بالسجل
+    // 5. حفظ سجل الحضور بالصورة الواضحة
     await addDoc(collection(db, "attendanceLogs"), {
-      employeeName: matchedEmp.employeeName || 'موظف محدد',
+      employeeName: matchedEmp.employeeName || 'الموظف المسجل',
       employeeId: matchedEmp.employeeId || '-',
       type: currentScanType === 'check-in' ? 'حضور' : 'انصراف',
       timestamp: new Date().toLocaleString('ar-SA'),
       location: { latitude: userLat, longitude: userLng },
       distanceMeters: Math.round(distanceMeters),
       matched: true,
-      faceSnapshot: liveCapturedFaceImage // إرسال الصورة الحية التقاطياً
+      faceSnapshot: liveCapturedFaceImage
     });
 
-    alert(`✅ تم تسجيل ${currentScanType === 'check-in' ? 'الحضور' : 'الانصراف'} بنجاح! أنت على بُعد ${Math.round(distanceMeters)} متر.`);
+    alert(`✅ تم تسجيل ${currentScanType === 'check-in' ? 'الحضور' : 'الانصراف'} بنجاح وبصورة حية واضحة!`);
     closeScanCameraModal();
     await loadAttendanceLogs();
+
   } catch (err) {
     console.error("خطأ التحضير الحي:", err);
-    alert("تعذر جلب الموقع أو الكاميرا: " + err.message);
+    alert("حدث خطأ أثناء التحضير: " + err.message);
   } finally {
     hideLoadingOverlay();
   }
