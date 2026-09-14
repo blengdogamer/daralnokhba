@@ -801,3 +801,136 @@ select:focus, input:focus, textarea:focus {
 .tab-content.active {
   display: block !important;
 }
+
+/* ================= تصميم القائمة الداكنة (تصميم أمن المنشآت) ================= */
+.sidebar {
+  background-color: #12141a !important; /* لون داكن احترافي */
+  color: #a0a5b5 !important;
+  border-left: 1px solid #1a1d26 !important;
+}
+
+.sidebar-logo {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.sidebar-logo h2 {
+  color: #ffffff !important;
+  font-size: 19px !important;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-logo p {
+  color: #72768d !important;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* عناوين الأقسام الرئيسية */
+.nav-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #616678;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 8px 6px 8px;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.nav-section-title .chevron-icon {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+/* التجميعة وروابط الملاحة */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.sidebar-nav a.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9398ac !important;
+  padding: 9px 12px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+  border-right: none !important;
+}
+
+.sidebar-nav a.nav-link .nav-icon {
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+/* حالة التحديد والتحويم */
+.sidebar-nav a.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+.sidebar-nav a.nav-link.active {
+  background-color: #1e2330 !important;
+  color: #5865f2 !important; /* تحديد مميز باللون التفاعلي */
+  font-weight: 700 !important;
+  box-shadow: inset 3px 0 0 #5865f2;
+}
+
+.sidebar-nav a.logout-link {
+  background-color: rgba(237, 66, 69, 0.1) !important;
+  color: #ed4245 !important;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-nav a.logout-link:hover {
+  background-color: #ed4245 !important;
+  color: #ffffff !important;
+}
+
+/* تنسيقات طي وفتح الأقسام */
+.nav-section-title.collapsible {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.nav-section-title.collapsible:hover {
+  color: #ffffff;
+}
+
+.nav-section-title .chevron-icon {
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+/* حالة الإغلاق */
+.nav-section-title.collapsed .chevron-icon {
+  transform: rotate(-90deg);
+}
+
+.nav-group {
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  max-height: 1000px; /* القيمة الافتراضية للفتح */
+  opacity: 1;
+}
+
+.nav-group.is-closed {
+  max-height: 0 !important;
+  opacity: 0;
+  padding: 0;
+  margin: 0;
+}

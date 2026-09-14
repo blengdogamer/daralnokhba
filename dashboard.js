@@ -160,6 +160,7 @@ async function initDashboard() {
     ]);
 
     setupCvSearchAndFilters();
+    setupCvArchiveSearchAndFilters();
     setupOldDataSearch();
   } catch (err) {
     console.error("خطأ أثناء تحميل البيانات:", err);
@@ -337,13 +338,15 @@ let oldDataSearchTimeout = null;
 
 function setupOldDataSearch() {
   const searchInput = document.getElementById('oldDataSearchInput');
-  if (!searchInput) return;
+  const nameSearchInput = document.getElementById('oldDataNameSearchInput');
+  if (!searchInput && !nameSearchInput) return;
 
-  searchInput.addEventListener('input', (e) => {
-    const term = e.target.value.trim();
+  const performSearch = () => {
+    const term = searchInput ? searchInput.value.trim() : '';
+    const nameTerm = nameSearchInput ? nameSearchInput.value.trim() : '';
     clearTimeout(oldDataSearchTimeout);
 
-    if (!term) {
+    if (!term && !nameTerm) {
       loadOldData(1);
       return;
     }
@@ -353,30 +356,40 @@ function setupOldDataSearch() {
       const paginationContainer = document.getElementById('oldDataPagination');
       if (!tbody) return;
 
-      tbody.innerHTML = '<tr><td colspan="3">جاري البحث في كافة السجلات...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4">جاري البحث في كامل قاعدة البيانات...</td></tr>';
       if (paginationContainer) paginationContainer.innerHTML = '';
 
       try {
         const searchResultsMap = new Map();
-
-        allOldData.forEach(item => {
-          if (JSON.stringify(item).toLowerCase().includes(term.toLowerCase())) {
-            searchResultsMap.set(item.id, item);
-          }
-        });
-
         const collRef = collection(db, "oldRequests");
-        const termAsNumber = !isNaN(term) ? Number(term) : null;
+        const queries = [];
 
-        const queries = [
-          getDocs(query(collRef, where("orderNumber", "==", term))),
-          getDocs(query(collRef, where("idNumber", "==", term))),
-          getDoc(doc(db, "oldRequests", term))
-        ];
+        if (term) {
+          const termAsNumber = !isNaN(term) ? Number(term) : null;
 
-        if (termAsNumber !== null) {
-          queries.push(getDocs(query(collRef, where("orderNumber", "==", termAsNumber))));
-          queries.push(getDocs(query(collRef, where("idNumber", "==", termAsNumber))));
+          queries.push(getDocs(query(collRef, where("IdentityId", "==", term))));
+          queries.push(getDocs(query(collRef, where("phoneNumber", "==", term))));
+          queries.push(getDocs(query(collRef, where("Phone", "==", term))));
+          queries.push(getDocs(query(collRef, where("orderNumber", "==", term))));
+          queries.push(getDocs(query(collRef, where("orderNo", "==", term))));
+          queries.push(getDoc(doc(db, "oldRequests", term)));
+
+          if (termAsNumber !== null) {
+            queries.push(getDocs(query(collRef, where("IdentityId", "==", termAsNumber))));
+            queries.push(getDocs(query(collRef, where("phoneNumber", "==", termAsNumber))));
+            queries.push(getDocs(query(collRef, where("Phone", "==", termAsNumber))));
+            queries.push(getDocs(query(collRef, where("orderNumber", "==", termAsNumber))));
+          }
+        }
+
+        if (nameTerm) {
+          const endStr = nameTerm + '\uf8ff';
+          queries.push(getDocs(query(collRef, orderBy("Name"), where("Name", ">=", nameTerm), where("Name", "<=", endStr))));
+          queries.push(getDocs(query(collRef, orderBy("name"), where("name", ">=", nameTerm), where("name", "<=", endStr))));
+          queries.push(getDocs(query(collRef, orderBy("applicantName"), where("applicantName", ">=", nameTerm), where("applicantName", "<=", endStr))));
+          
+          queries.push(getDocs(query(collRef, where("Name", "==", nameTerm))));
+          queries.push(getDocs(query(collRef, where("name", "==", nameTerm))));
         }
 
         const snapshots = await Promise.all(queries);
@@ -395,16 +408,19 @@ function setupOldDataSearch() {
         const finalResults = Array.from(searchResultsMap.values());
 
         if (finalResults.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="3">لم يتم العثور على أي طلب برقم البحث المدخل</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4">لم يتم العثور على أي طلب مطابق في كامل الداتا القديمة</td></tr>';
         } else {
           renderOldDataTable(finalResults);
         }
       } catch (err) {
-        console.error("خطأ أثناء البحث في الداتا القديمة:", err);
-        tbody.innerHTML = '<tr><td colspan="3">حدث خطأ أثناء إجراء البحث</td></tr>';
+        console.error("خطأ أثناء البحث الشامل:", err);
+        tbody.innerHTML = '<tr><td colspan="4">حدث خطأ أثناء إجراء البحث في السيرفر</td></tr>';
       }
     }, 400);
-  });
+  };
+
+  if (searchInput) searchInput.addEventListener('input', performSearch);
+  if (nameSearchInput) nameSearchInput.addEventListener('input', performSearch);
 }
 
 async function loadOldData(page = 1) {
@@ -521,17 +537,19 @@ function renderOldDataTable(dataList) {
   if (!tbody) return;
 
   if (dataList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3">لا توجد نتائج مطابقة</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">لا توجد نتائج مطابقة</td></tr>';
     return;
   }
 
   tbody.innerHTML = dataList.map((item, index) => {
     const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
     const orderNumber = item.orderNumber || item.orderNo || item.idNumber || item.id || `REQ-${index + 1}`;
-    
+    const clientName = item.Name || item.name || item.clientName || 'غير مدون';
+
     return `
       <tr>
         <td><strong>${orderNumber}</strong></td>
+        <td><span style="font-weight: bold; color: var(--primary-color, #1a2b4c);">${clientName}</span></td>
         <td>
           <button class="btn-action btn-edit" onclick="viewOldDataDetails(${safeData})">👁️ عرض</button>
         </td>
@@ -1022,6 +1040,134 @@ window.openOrderEditModal = async function(order) {
   if (modal) modal.style.display = 'flex';
 };
 
+window.toggleEditVisaFields = function() {
+  const hasVisa = document.getElementById('editHasVisa')?.checked || false;
+  const visaGroup = document.getElementById('editVisaFieldsGroup');
+  if (visaGroup) {
+    visaGroup.style.display = hasVisa ? 'grid' : 'none';
+  }
+};
+
+window.openCvSelectorModal = function() {
+  const availableGrid = document.getElementById('availableCvsGrid');
+  const currentTitle = selectedWorkerTitleForEdit || document.getElementById('currentSelectedCvTitle')?.value;
+
+  if (availableGrid) {
+    const activeCvs = allCvsData.filter(c => c.status === 'نشط' || c.title === currentTitle);
+    availableGrid.innerHTML = activeCvs.map(cv => {
+      const isSelected = cv.title === currentTitle;
+      return `
+        <div onclick="selectCvForOrder('${cv.title.replace(/'/g, "\\'")}')" id="cvCard_${cv.title.replace(/\s+/g, '_')}" style="border: 2px solid ${isSelected ? 'var(--primary-blue)' : '#ddd'}; background: ${isSelected ? '#eef6fb' : '#fff'}; padding: 8px; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;">
+          <img src="${cv.imageUrl || 'https://via.placeholder.com/60'}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;">
+          <div style="font-size: 11px; font-weight: bold; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cv.title}</div>
+          <div style="font-size: 10px; color: #777;">${cv.workerName || ''}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const selectorModal = document.getElementById('cvSelectorModal');
+  if (selectorModal) selectorModal.style.display = 'flex';
+};
+
+window.closeCvSelectorModal = function() {
+  const selectorModal = document.getElementById('cvSelectorModal');
+  if (selectorModal) selectorModal.style.display = 'none';
+};
+
+window.selectCvForOrder = function(cvTitle) {
+  selectedWorkerTitleForEdit = cvTitle;
+  document.querySelectorAll('#availableCvsGrid > div').forEach(el => {
+    el.style.borderColor = '#ddd';
+    el.style.background = '#fff';
+  });
+  const safeId = `cvCard_${cvTitle.replace(/\s+/g, '_')}`;
+  const target = document.getElementById(safeId);
+  if (target) {
+    target.style.borderColor = 'var(--primary-blue)';
+    target.style.background = '#eef6fb';
+  }
+};
+
+window.confirmCvSelection = function() {
+  if (selectedWorkerTitleForEdit) {
+    const titleDisplay = document.getElementById('displaySelectedCvTitle');
+    if (titleDisplay) titleDisplay.textContent = selectedWorkerTitleForEdit;
+  }
+  closeCvSelectorModal();
+};
+
+window.closeOrderEditModal = function() {
+  const modal = document.getElementById('orderEditModal');
+  if (modal) modal.style.display = 'none';
+};
+
+document.getElementById('orderEditForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('editOrderId').value;
+  const oldCvTitle = document.getElementById('currentSelectedCvTitle').value;
+  const newCvTitle = selectedWorkerTitleForEdit || oldCvTitle;
+  const isHasVisaChecked = document.getElementById('editHasVisa')?.checked || false;
+
+  const updatedOrder = {
+    selectedItem: newCvTitle,
+    applicantName: document.getElementById('editApplicantName').value,
+    idNumber: document.getElementById('editIdNumber').value,
+    birthDate: document.getElementById('editBirthDate').value,
+    phoneNumber: document.getElementById('editPhoneNumber').value,
+    note: document.getElementById('editNote').value,
+    hasVisa: isHasVisaChecked,
+    visaDetails: {
+      visaNumber: document.getElementById('editVisaNumber').value,
+      visaIssueDate: document.getElementById('editVisaIssueDate').value,
+      borderNumber: document.getElementById('editBorderNumber').value,
+      employerName: document.getElementById('editEmployerName').value,
+      workCity: document.getElementById('editWorkCity').value,
+      address: document.getElementById('editAddress').value,
+      relativeName: document.getElementById('editRelativeName').value,
+      relativeRelation: document.getElementById('editRelativeRelation').value,
+      relativePhone: document.getElementById('editRelativePhone').value,
+      relativeEmployer: document.getElementById('editRelativeEmployer').value,
+      homeFloors: document.getElementById('editHomeFloors').value,
+      homeRooms: document.getElementById('editHomeRooms').value,
+      familyMembers: document.getElementById('editFamilyMembers').value
+    }
+  };
+
+  try {
+    showLoadingOverlay();
+    await updateDoc(doc(db, "orders", id), updatedOrder);
+
+    if (oldCvTitle && oldCvTitle !== newCvTitle) {
+      const oldCvQ = query(collection(db, "cvs"), where("title", "==", oldCvTitle));
+      const oldCvSnap = await getDocs(oldCvQ);
+      const reactivateOld = oldCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "نشط" }));
+
+      const newCvQ = query(collection(db, "cvs"), where("title", "==", newCvTitle));
+      const newCvSnap = await getDocs(newCvQ);
+      const archiveNew = newCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "جاري التعامل" }));
+
+      await Promise.all([...reactivateOld, ...archiveNew]);
+    } else if (newCvTitle) {
+      const newCvQ = query(collection(db, "cvs"), where("title", "==", newCvTitle));
+      const newCvSnap = await getDocs(newCvQ);
+      const archiveNew = newCvSnap.docs.map(d => updateDoc(doc(db, "cvs", d.id), { status: "جاري التعامل" }));
+      await Promise.all(archiveNew);
+    }
+
+    alert("تم تعديل كافة بيانات الطلب والتأشيرة بنجاح!");
+    closeOrderEditModal();
+    await loadOrders(ordersPage);
+    await loadCvs();
+  } catch(err) {
+    console.error("خطأ التعديل:", err);
+    alert("حدث خطأ أثناء تعديل الطلب.");
+  } finally {
+    hideLoadingOverlay();
+  }
+});
+
+// 🔹 1 - تعديل قبول الطلب ليصبح "جاري التعامل" للسيفي والطلب
 window.acceptOrder = async function(id, selectedItemTitle) {
   try {
     const orderRef = doc(db, "orders", id);
@@ -1040,14 +1186,14 @@ window.acceptOrder = async function(id, selectedItemTitle) {
       const cvQuery = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
       const cvSnapshot = await getDocs(cvQuery);
       const cvFinishedUpdates = cvSnapshot.docs.map(cvDoc => 
-        updateDoc(doc(db, "cvs", cvDoc.id), { status: "تم الانتهاء" })
+        updateDoc(doc(db, "cvs", cvDoc.id), { status: "جاري التعامل" })
       );
       await Promise.all(cvFinishedUpdates);
     }
 
     await sendTelegramAcceptNotification({ id, ...orderData, selectedItem: selectedItemTitle });
 
-    alert("تم قبول الطلب ونقله إلى قسم المتابعة بنجاح!");
+    alert("تم قبول الطلب ونقله إلى قسم المتابعة بنجاح! وتغيير حالة السيفي إلى (جاري التعامل).");
     loadOrders(ordersPage);
     loadTracking();
     loadCvs();
@@ -1107,7 +1253,7 @@ async function loadTracking(page = 1) {
     const parseSafeDate = (dateStr) => {
       if (!dateStr) return null;
       if (typeof dateStr !== 'string') return new Date(dateStr);
-      const westernNumbers = dateStr.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+      const westernNumbers = dateStr.replace(/[٠-٩]/g, d => "٠١٢٣٥٦٧٨٩".indexOf(d));
       const d = new Date(westernNumbers);
       return isNaN(d.getTime()) ? null : d;
     };
@@ -1153,7 +1299,7 @@ async function loadTracking(page = 1) {
         </td>
         <td>
           <button class="btn-action btn-edit" onclick="openTrackingEditModal(${safeTrackingData})">تعديل</button>
-          <button class="btn-action btn-accept" onclick="completeOrder('${id}')">إنهاء الطلب</button>
+          <button class="btn-action btn-accept" onclick="completeOrder('${id}', '${item.selectedItem}')">إنهاء الطلب</button>
         </td>
       </tr>
     `;
@@ -1163,7 +1309,109 @@ async function loadTracking(page = 1) {
   renderCustomPagination('trackingPagination', allTrackingData.length, trackingPage, 'changeTrackingPage');
 }
 
+window.openTrackingEditModal = function(item) {
+  document.getElementById('editTrackingOrderId').value = item.id;
+  const track = item.trackingDetails || {};
+
+  document.getElementById('trackStatus').value = item.trackingStatus || 'تحت الإجراء';
+  document.getElementById('trackPoloEntryDate').value = track.poloEntryDate || '';
+  document.getElementById('trackPoloReceiveDate').value = track.poloReceiveDate || '';
+  document.getElementById('trackMusanedPayDate').value = track.musanedPayDate || '';
+  document.getElementById('trackMusanedLinkDate').value = track.musanedLinkDate || '';
+  document.getElementById('trackMusanedSignDate').value = track.musanedSignDate || '';
+  document.getElementById('trackContractNo').value = track.contractNo || '';
+  document.getElementById('trackMedical').value = track.medical || '';
+  document.getElementById('trackBiometric').value = track.biometric || '';
+  document.getElementById('trackOWWA').value = track.owwa || '';
+  document.getElementById('trackOEC').value = track.oec || '';
+  document.getElementById('trackAgencyDate').value = track.agencyDate || '';
+  document.getElementById('trackEmbassyEntryDate').value = track.embassyEntryDate || '';
+  document.getElementById('trackVisaReceiveDate').value = track.visaReceiveDate || '';
+  document.getElementById('trackTravelDate').value = track.travelDate || '';
+  document.getElementById('trackNotes').value = track.notes || '';
+
+  const modal = document.getElementById('trackingEditModal');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.closeTrackingEditModal = function() {
+  const modal = document.getElementById('trackingEditModal');
+  if (modal) modal.style.display = 'none';
+};
+
 window.changeTrackingPage = function(p) { loadTracking(p); };
+
+document.getElementById('trackingEditForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('editTrackingOrderId').value;
+
+  const trackingStatus = document.getElementById('trackStatus').value;
+  const trackingDetails = {
+    poloEntryDate: document.getElementById('trackPoloEntryDate').value,
+    poloReceiveDate: document.getElementById('trackPoloReceiveDate').value,
+    musanedPayDate: document.getElementById('trackMusanedPayDate').value,
+    musanedLinkDate: document.getElementById('trackMusanedLinkDate').value,
+    musanedSignDate: document.getElementById('trackMusanedSignDate').value,
+    contractNo: document.getElementById('trackContractNo').value,
+    medical: document.getElementById('trackMedical').value,
+    biometric: document.getElementById('trackBiometric').value,
+    owwa: document.getElementById('trackOWWA').value,
+    oec: document.getElementById('trackOEC').value,
+    agencyDate: document.getElementById('trackAgencyDate').value,
+    embassyEntryDate: document.getElementById('trackEmbassyEntryDate').value,
+    visaReceiveDate: document.getElementById('trackVisaReceiveDate').value,
+    travelDate: document.getElementById('trackTravelDate').value,
+    notes: document.getElementById('trackNotes').value
+  };
+
+  try {
+    showLoadingOverlay();
+    await updateDoc(doc(db, "orders", id), {
+      trackingStatus: trackingStatus,
+      trackingDetails: trackingDetails
+    });
+
+    alert("تم حفظ بيانات المتابعة بنجاح!");
+    closeTrackingEditModal();
+    loadTracking(trackingPage);
+  } catch(err) {
+    console.error("خطأ في المتابعة:", err);
+    alert("حدث خطأ أثناء حفظ بيانات المتابعة.");
+  } finally {
+    hideLoadingOverlay();
+  }
+});
+
+// 🔹 1 - تعديل إنهاء الطلب ليصبح "تم الانتهاء" للسيفي
+window.completeOrder = async function(id, selectedItemTitle) {
+  if (confirm("هل أنت متأكد من إنهاء هذا الطلب ونقله إلى الأرشيف؟")) {
+    try {
+      const orderRef = doc(db, "orders", id);
+      await updateDoc(orderRef, {
+        status: "مؤرشف",
+        trackingStatus: "مكتمل ومؤرشف"
+      });
+
+      if (selectedItemTitle) {
+        const cvQuery = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
+        const cvSnapshot = await getDocs(cvQuery);
+        const cvFinishedUpdates = cvSnapshot.docs.map(cvDoc => 
+          updateDoc(doc(db, "cvs", cvDoc.id), { status: "تم الانتهاء" })
+        );
+        await Promise.all(cvFinishedUpdates);
+      }
+
+      alert("تم إنهاء الطلب ونقله إلى الأرشيف بنجاح وتعديل حالة السيفي إلى (تم الانتهاء)!");
+      loadTracking(trackingPage);
+      loadArchive(archivePage);
+      loadCvs();
+      calculateAnalytics();
+    } catch (err) {
+      console.error("خطأ أثناء إنهاء الطلب:", err);
+      alert("حدث خطأ: " + err.message);
+    }
+  }
+};
 
 window.updateTrackingStatus = async function(id, newStatus) {
   await updateDoc(doc(db, "orders", id), { trackingStatus: newStatus });
@@ -1262,6 +1510,13 @@ async function loadCategorySettings() {
       </div>
     `;
   }).join('');
+
+  if (document.getElementById('firstExperienceSort')) {
+    document.getElementById('firstExperienceSort').value = currentSettings.firstExperience || "سبق لها العمل";
+  }
+  if (document.getElementById('firstJobSort')) {
+    document.getElementById('firstJobSort').value = currentSettings.firstJob || "عاملة منزلية";
+  }
 }
 
 document.getElementById('categoryOrderForm')?.addEventListener('submit', async (e) => {
@@ -1321,6 +1576,7 @@ document.getElementById('addCvForm')?.addEventListener('submit', async (e) => {
 
 let allArchiveCvsData = [];
 
+// 🔹 2 - السيفيات المحدثة وتصفية الأرشيف لتعرض المؤرشفة / جاري التعامل / تم الانتهاء
 async function loadCvs(cPage = 1, aPage = 1) {
   cvsPage = cPage;
   cvArchivePage = aPage;
@@ -1340,6 +1596,7 @@ async function loadCvs(cPage = 1, aPage = 1) {
       active++;
       allCvsData.push({ id, ...item });
     } else {
+      // إظهار غير النشط في قسم الأرشيف
       allArchiveCvsData.push({ id, ...item });
     }
   });
@@ -1368,14 +1625,23 @@ function renderCvsTable(dataList) {
     const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
     return `
       <tr>
-        <td><img src="${item.imageUrl || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
-        <td>${item.title}</td>
+        <td>
+          <img src="${item.imageUrl || 'https://via.placeholder.com/40'}" 
+               onclick="viewCvImage('${item.title}')" 
+               style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" 
+               title="اضغط للتكبير">
+        </td>
+        <td>
+          <a href="javascript:void(0)" onclick="viewCvImage('${item.title}')" style="font-weight:bold; color:var(--primary-blue); text-decoration:underline;">
+            ${item.title}
+          </a>
+        </td>
         <td><strong>${item.job || 'عاملة منزلية'}</strong></td>
         <td>${item.serviceType || 'إستقدام جديد'}</td>
         <td><strong style="color:#b38b4d;">${item.workerName || 'غير محدد'}</strong></td>
         <td><span style="background:#f1f5f9; padding:3px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${item.officeName || 'غير محدد'}</span></td>
         <td>${item.country}</td>
-        <td>${item.status}</td>
+        <td><span style="background:#e8f8f5; color:#27ae60; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
         <td>
           <button class="btn-action btn-edit" onclick="openEditCvModal(${safeData})">تعديل</button>
           <button class="btn-action btn-archive" onclick="toggleArchive('${item.id}', '${item.status}')">${item.status === 'نشط' ? 'أرشفة' : 'تفعيل'}</button>
@@ -1407,16 +1673,32 @@ function renderArchiveCvsTable(dataList) {
   const pageData = dataList.slice(startIndex, startIndex + PAGE_SIZE_10);
 
   tbody.innerHTML = pageData.map((item) => {
+    let statusBg = '#ffeaa7', statusColor = '#d63031';
+    if (item.status === 'جاري التعامل') {
+      statusBg = '#e1f5fe'; statusColor = '#0288d1';
+    } else if (item.status === 'تم الانتهاء') {
+      statusBg = '#e8f5e9'; statusColor = '#2e7d32';
+    }
+
     return `
       <tr>
-        <td><img src="${item.imageUrl || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
-        <td>${item.title}</td>
+        <td>
+          <img src="${item.imageUrl || 'https://via.placeholder.com/40'}" 
+               onclick="viewCvImage('${item.title}')" 
+               style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;" 
+               title="اضغط للتكبير">
+        </td>
+        <td>
+          <a href="javascript:void(0)" onclick="viewCvImage('${item.title}')" style="font-weight:bold; color:var(--primary-blue); text-decoration:underline;">
+            ${item.title}
+          </a>
+        </td>
         <td><strong>${item.job || 'عاملة منزلية'}</strong></td>
         <td>${item.serviceType || 'إستقدام جديد'}</td>
         <td><strong style="color:#b38b4d;">${item.workerName || 'غير محدد'}</strong></td>
         <td><span style="background:#f1f5f9; padding:3px 8px; border-radius:6px; font-weight:bold; font-size:11px;">${item.officeName || 'غير محدد'}</span></td>
         <td>${item.country}</td>
-        <td><span style="background:#ffeaa7; color:#d63031; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
+        <td><span style="background:${statusBg}; color:${statusColor}; padding:3px 8px; border-radius:6px; font-weight:bold;">${item.status}</span></td>
         <td>
           <button class="btn-action btn-accept" onclick="reactivateCv('${item.id}')">إعادة تفعيل 🔄</button>
           <button class="btn-action btn-delete" onclick="deleteCv('${item.id}')">حذف</button>
@@ -1427,6 +1709,17 @@ function renderArchiveCvsTable(dataList) {
 
   renderCustomPagination('cvArchivePagination', dataList.length, cvArchivePage, 'changeCvArchivePage');
 }
+
+window.reactivateCv = async function(id) {
+  try {
+    await updateDoc(doc(db, "cvs", id), { status: "نشط" });
+    alert("تمت إعادة تفعيل السيرة الذاتية بنجاح ونقلها للقائمة الرئيسية!");
+    await loadCvs();
+  } catch (err) {
+    console.error("خطأ أثناء إعادة تفعيل السيفي:", err);
+    alert("حدث خطأ أثناء محاولة إعادة التفعيل.");
+  }
+};
 
 window.changeCvArchivePage = function(p) {
   cvArchivePage = p;
@@ -1468,6 +1761,42 @@ function setupCvSearchAndFilters() {
   if (serviceFilter) serviceFilter.addEventListener('change', applyFilters);
 }
 
+// 🔹 2 - إعداد فلاتر أرشيف السيفيات مع خيار مؤرشف ونشط والجنسيات
+function setupCvArchiveSearchAndFilters() {
+  const searchInput = document.getElementById('cvArchiveSearchInput');
+  const statusFilter = document.getElementById('cvArchiveFilterStatus');
+  const countryFilter = document.getElementById('cvArchiveFilterCountry');
+  const jobFilter = document.getElementById('cvArchiveFilterJob');
+
+  function applyArchiveFilters() {
+    const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const selectedStatus = statusFilter ? statusFilter.value : '';
+    const selectedCountry = countryFilter ? countryFilter.value : '';
+    const selectedJob = jobFilter ? jobFilter.value : '';
+
+    const filtered = allArchiveCvsData.filter(item => {
+      const matchesSearch = !term || 
+        (item.workerName || '').toLowerCase().includes(term) ||
+        (item.title || '').toLowerCase().includes(term) ||
+        (item.country || '').toLowerCase().includes(term);
+
+      const matchesStatus = !selectedStatus || item.status === selectedStatus;
+      const matchesCountry = !selectedCountry || item.country === selectedCountry;
+      const matchesJob = !selectedJob || item.job === selectedJob;
+
+      return matchesSearch && matchesStatus && matchesCountry && matchesJob;
+    });
+
+    cvArchivePage = 1;
+    renderArchiveCvsTable(filtered);
+  }
+
+  if (searchInput) searchInput.addEventListener('input', applyArchiveFilters);
+  if (statusFilter) statusFilter.addEventListener('change', applyArchiveFilters);
+  if (countryFilter) countryFilter.addEventListener('change', applyArchiveFilters);
+  if (jobFilter) jobFilter.addEventListener('change', applyArchiveFilters);
+}
+
 window.openEditCvModal = function(cvData) {
   document.getElementById('editCvId').value = cvData.id;
   document.getElementById('editCvTitle').value = cvData.title || '';
@@ -1490,6 +1819,40 @@ window.closeEditCvModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
+document.getElementById('editCvForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('editCvId').value;
+  const fileInput = document.getElementById('editCvImage');
+
+  const updateData = {
+    title: document.getElementById('editCvTitle').value,
+    workerName: document.getElementById('editCvWorkerName').value,
+    officeName: document.getElementById('editCvOffice')?.value || '',
+    job: document.getElementById('editCvJob').value,
+    serviceType: document.getElementById('editCvServiceType').value,
+    country: document.getElementById('editCvCountry').value,
+    religion: document.getElementById('editCvReligion').value,
+    experience: document.getElementById('editCvExperience').value
+  };
+
+  if (fileInput && fileInput.files[0]) {
+    updateData.imageUrl = await convertBase64AndCompress(fileInput.files[0]);
+  }
+
+  try {
+    showLoadingOverlay();
+    await updateDoc(doc(db, "cvs", id), updateData);
+    alert("تم تعديل بيانات السيرة الذاتية بنجاح!");
+    closeEditCvModal();
+    loadCvs(cvsPage, cvArchivePage);
+  } catch (err) {
+    console.error("خطأ أثناء التعديل:", err);
+    alert("حدث خطأ أثناء حفظ التعديلات: " + err.message);
+  } finally {
+    hideLoadingOverlay();
+  }
+});
+
 window.toggleArchive = async function(id, cur) {
   await updateDoc(doc(db, "cvs", id), { status: cur === 'نشط' ? 'مؤرشف' : 'نشط' });
   loadCvs();
@@ -1502,6 +1865,7 @@ window.deleteCv = async function(id) {
   }
 };
 
+// 🔹 فتح الصورة مكبرة مع توفير رابط فتح في تبويب جديد (Open Image in new tab)
 window.viewCvImage = async function(selectedItemTitle) {
   try {
     const q = query(collection(db, "cvs"), where("title", "==", selectedItemTitle));
@@ -1523,9 +1887,12 @@ window.viewCvImage = async function(selectedItemTitle) {
     }
 
     const modalImg = document.getElementById('dashboardCvModalImg');
+    const newTabBtn = document.getElementById('dashboardCvOpenNewTabBtn');
     const modal = document.getElementById('dashboardCvModal');
+    
     if (modalImg && modal) {
       modalImg.src = imageUrl;
+      if (newTabBtn) newTabBtn.href = imageUrl;
       modal.style.display = 'flex';
     }
   } catch (err) {
@@ -1720,12 +2087,11 @@ function setupDashboardSearchFilters() {
 
 let activeWebcamStream = null;
 let capturedFaceDataBase64 = null;
-let currentScanType = 'check-in'; // check-in OR check-out
+let currentScanType = 'check-in'; 
 let liveScanWebcamStream = null;
 
-// حساب المسافة بين نقطتين بالمتر (Haversine Formula)
 function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // نصف قطر الأرض بالمتر
+  const R = 6371e3;
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
   const dLon = (lon2 - lon1) * rad;
@@ -1738,7 +2104,6 @@ function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// الحصول على موقع المستخدم الحالي
 function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -1753,7 +2118,6 @@ function getCurrentLocation() {
   });
 }
 
-// نافذة إضافة بصمة وجه أساسية للموظف
 window.openAddFaceModal = async function() {
   document.getElementById('addFaceModal').style.display = 'flex';
   document.getElementById('captureStatus').textContent = '';
@@ -1766,7 +2130,6 @@ window.closeAddFaceModal = function() {
   stopWebcam(activeWebcamStream);
 };
 
-// فتح نافذة الكاميرا الحية لتسجيل الحضور/الانصراف
 window.openScanCameraModal = async function(type) {
   currentScanType = type;
   const title = document.getElementById('scanModalTitle');
@@ -1811,7 +2174,6 @@ function stopWebcam(stream) {
   }
 }
 
-// التقاط الصورة الأساسية للبروفايل
 window.captureFaceSnapshot = function() {
   const video = document.getElementById('webcamVideo');
   const canvas = document.getElementById('faceCanvas');
@@ -1828,7 +2190,6 @@ window.captureFaceSnapshot = function() {
   statusDiv.textContent = "✅ تم التقاط صورة الوجه الأساسية بنجاح!";
 };
 
-// حفظ الموظف الجديد في Firestore
 document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -1865,7 +2226,6 @@ document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => 
   }
 });
 
-// 📸 التقاط وتحضير حقيقي مع مطابقة الوجه وتأخير لاستقرار الكاميرا
 window.submitAttendanceWithLiveScan = async function() {
   const video = document.getElementById('scanWebcamVideo');
   const canvas = document.getElementById('scanFaceCanvas');
@@ -1877,7 +2237,6 @@ window.submitAttendanceWithLiveScan = async function() {
     statusDiv.style.color = '#1c5276';
     statusDiv.textContent = "⌛ جاري التأكد من الموقع الجغرافي وتجهيز الكاميرا...";
 
-    // 1. التحقق من الموقع الجغرافي
     const position = await getCurrentLocation();
     const userLat = position.coords.latitude;
     const userLng = position.coords.longitude;
@@ -1890,17 +2249,14 @@ window.submitAttendanceWithLiveScan = async function() {
       return;
     }
 
-    // 2. الانتظار 1.5 ثانية للتأكد من ظهور الصورة من الكاميرا وعدم التقاط شاشة سوداء
     statusDiv.textContent = "📸 جاري التقاط الصورة والتحقق من الوجه...";
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // 3. التقاط الصورة الحية
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // فحص الإضاءة: التأكد أن الصورة ليست سوداء بالكامل
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let totalBrightness = 0;
     for (let i = 0; i < imgData.data.length; i += 4) {
@@ -1908,7 +2264,7 @@ window.submitAttendanceWithLiveScan = async function() {
     }
     const avgBrightness = totalBrightness / (imgData.data.length / 4);
 
-    if (avgBrightness < 15) { // إذا كانت الكاميرا مظلمة جداً أو مغطاة
+    if (avgBrightness < 15) {
       statusDiv.style.color = '#d63031';
       statusDiv.textContent = "❌ الكاميرا مغطاة أو الإضاءة معدومة! يرجى إظهار وجهك بوضوح.";
       alert("تعذر التقاط الوجه! الشاشة سوداء أو الإضاءة منخفضة جداً.");
@@ -1918,7 +2274,6 @@ window.submitAttendanceWithLiveScan = async function() {
     const liveCapturedFaceImage = canvas.toDataURL('image/jpeg', 0.85);
     showLoadingOverlay();
 
-    // 4. جلب الموظفين المسجلين
     const bioSnap = await getDocs(collection(db, "employeeBiometrics"));
     if (bioSnap.empty) {
       alert("لا يوجد موظفين مسجلين بالنظام! أضف موظفاً أولاً.");
@@ -1926,9 +2281,8 @@ window.submitAttendanceWithLiveScan = async function() {
       return;
     }
 
-    const matchedEmp = bioSnap.docs[0].data(); // الموظف المعتمد
+    const matchedEmp = bioSnap.docs[0].data();
 
-    // 5. حفظ سجل الحضور بالصورة الواضحة
     await addDoc(collection(db, "attendanceLogs"), {
       employeeName: matchedEmp.employeeName || 'الموظف المسجل',
       employeeId: matchedEmp.employeeId || '-',
@@ -1952,7 +2306,6 @@ window.submitAttendanceWithLiveScan = async function() {
   }
 };
 
-// تحميل سجل الحضور والغياب (عرض أخر 10 تسجيلات فقط)
 async function loadAttendanceLogs() {
   const tbody = document.getElementById('attendanceLogsTableBody');
   if (!tbody) return;
@@ -1989,3 +2342,12 @@ async function loadAttendanceLogs() {
     console.error("خطأ تحميل سجل الحضور:", err);
   }
 }
+
+// دالة فتح وإغلاق أقسام القائمة الجانبية
+window.toggleNavGroup = function(headerElem) {
+  const navGroup = headerElem.nextElementSibling;
+  if (!navGroup) return;
+
+  headerElem.classList.toggle('collapsed');
+  navGroup.classList.toggle('is-closed');
+};
