@@ -904,7 +904,11 @@ async function loadOrders(page = 1) {
 
   const q = query(collection(db, "orders"), where("status", "==", "طلب جديد"));
   const querySnapshot = await getDocs(q);
-  allOrdersData = [];
+  allOrdersData.sort((a, b) => {
+    const dateA = new Date(a.createdAtIso || a.createdAt || 0);
+    const dateB = new Date(b.createdAtIso || b.createdAt || 0);
+    return dateB - dateA;
+  });
 
   querySnapshot.forEach(docSnap => {
     allOrdersData.push({ id: docSnap.id, ...docSnap.data() });
@@ -1229,21 +1233,31 @@ async function loadTracking(page = 1) {
   const querySnapshot = await getDocs(q);
   allTrackingData = [];
 
-  const trackingCountElem = document.getElementById('trackingOrdersCount');
-  if (trackingCountElem) trackingCountElem.textContent = querySnapshot.size;
+  querySnapshot.forEach(docSnap => {
+    allTrackingData.push({ id: docSnap.id, ...docSnap.data() });
+  });
 
-  if (querySnapshot.empty) {
+  // فرز الطلبات يدويًا من الأحدث إلى الأقدم
+  allTrackingData.sort((a, b) => {
+    const dateA = new Date(a.acceptedAt || a.createdAtIso || a.createdAt || 0);
+    const dateB = new Date(b.acceptedAt || b.createdAtIso || b.createdAt || 0);
+    return dateB - dateA;
+  });
+
+  const trackingCountElem = document.getElementById('trackingOrdersCount');
+  if (trackingCountElem) trackingCountElem.textContent = allTrackingData.length;
+
+  if (allTrackingData.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7">لا توجد طلبات جارية تحت المتابعة</td></tr>';
     renderCustomPagination('trackingPagination', 0, 1, 'changeTrackingPage');
     return;
   }
 
-  querySnapshot.forEach(docSnap => {
-    allTrackingData.push({ id: docSnap.id, ...docSnap.data() });
-  });
-
   const startIndex = (trackingPage - 1) * PAGE_SIZE_10;
   const pageData = allTrackingData.slice(startIndex, startIndex + PAGE_SIZE_10);
+  
+  // (باقي كود رسم الجدول كما هو بدون تغيير...)
+  // ...
   const now = new Date();
 
   const rows = pageData.map(item => {
@@ -1418,6 +1432,7 @@ window.updateTrackingStatus = async function(id, newStatus) {
   loadTracking(trackingPage);
 };
 
+
 // 7. قسم الأرشيف (10 نتائج للصفحة)
 let allArchiveData = [];
 async function loadArchive(page = 1) {
@@ -1429,18 +1444,25 @@ async function loadArchive(page = 1) {
   const querySnapshot = await getDocs(q);
   allArchiveData = [];
 
-  const archiveCountElem = document.getElementById('archiveCount');
-  if (archiveCountElem) archiveCountElem.textContent = querySnapshot.size;
+  querySnapshot.forEach(docSnap => {
+    allArchiveData.push({ id: docSnap.id, ...docSnap.data() });
+  });
 
-  if (querySnapshot.empty) {
+  // فرز الأرشيف من الأحدث إلى الأقدم
+  allArchiveData.sort((a, b) => {
+    const dateA = new Date(a.updatedAt || a.createdAtIso || a.createdAt || 0);
+    const dateB = new Date(b.updatedAt || b.createdAtIso || b.createdAt || 0);
+    return dateB - dateA;
+  });
+
+  const archiveCountElem = document.getElementById('archiveCount');
+  if (archiveCountElem) archiveCountElem.textContent = allArchiveData.length;
+
+  if (allArchiveData.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6">الأرشيف فارغ حالياً</td></tr>';
     renderCustomPagination('archivePagination', 0, 1, 'changeArchivePage');
     return;
   }
-
-  querySnapshot.forEach(docSnap => {
-    allArchiveData.push({ id: docSnap.id, ...docSnap.data() });
-  });
 
   const startIndex = (archivePage - 1) * PAGE_SIZE_10;
   const pageData = allArchiveData.slice(startIndex, startIndex + PAGE_SIZE_10);
@@ -2119,9 +2141,36 @@ function getCurrentLocation() {
 }
 
 window.openAddFaceModal = async function() {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    alert("يرجى تسجيل الدخول أولاً!");
+    return;
+  }
+
   document.getElementById('addFaceModal').style.display = 'flex';
   document.getElementById('captureStatus').textContent = '';
   capturedFaceDataBase64 = null;
+
+  // التحقق هل توجد بصمة مسجلة لهذا الحساب مسبقاً
+  try {
+    const q = query(collection(db, "employeeBiometrics"), where("userEmail", "==", currentUser.email));
+    const snap = await getDocs(q);
+
+    const submitBtn = document.getElementById('submitFaceBtn');
+    if (!snap.empty) {
+      const existingData = snap.docs[0].data();
+      document.getElementById('employeeNameInput').value = existingData.employeeName || '';
+      document.getElementById('employeeIdInput').value = existingData.employeeId || '';
+      if (submitBtn) submitBtn.textContent = "🔄 تجديد بصمة الوجه";
+    } else {
+      document.getElementById('employeeNameInput').value = '';
+      document.getElementById('employeeIdInput').value = '';
+      if (submitBtn) submitBtn.textContent = "➕ إضافة بصمة وجه موظف";
+    }
+  } catch (err) {
+    console.error("خطأ في جلب بيانات البصمة:", err);
+  }
+
   await startWebcam('webcamVideo');
 };
 
@@ -2198,6 +2247,7 @@ document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => 
     return;
   }
 
+  const currentUser = auth.currentUser;
   const name = document.getElementById('employeeNameInput').value;
   const empId = document.getElementById('employeeIdInput').value;
 
@@ -2205,7 +2255,12 @@ document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => 
     showLoadingOverlay();
     const position = await getCurrentLocation();
 
-    await addDoc(collection(db, "employeeBiometrics"), {
+    // البحث عن وجود بصمة سابقة لتحديثها (تجديدها) بدلاً من إنشاء مستند جديد
+    const q = query(collection(db, "employeeBiometrics"), where("userEmail", "==", currentUser.email));
+    const snap = await getDocs(q);
+
+    const payload = {
+      userEmail: currentUser.email,
       employeeId: empId,
       employeeName: name,
       faceVectorData: capturedFaceDataBase64,
@@ -2213,10 +2268,21 @@ document.getElementById('addFaceForm')?.addEventListener('submit', async (e) => 
         latitude: position.coords.latitude,
         longitude: position.coords.longitude
       },
-      createdAt: new Date().toISOString()
-    });
+      updatedAt: new Date().toISOString()
+    };
 
-    alert("تم حفظ بصمة الوجه والموقع الجغرافي للموظف بنجاح!");
+    if (!snap.empty) {
+      // تجديد البصمة القائمة
+      const docId = snap.docs[0].id;
+      await updateDoc(doc(db, "employeeBiometrics", docId), payload);
+      alert("تم تجديد بصمة الوجه والموقع الجغرافي للموظف بنجاح!");
+    } else {
+      // إضافة بصمة لأول مرة
+      payload.createdAt = new Date().toISOString();
+      await addDoc(collection(db, "employeeBiometrics"), payload);
+      alert("تمت إضافة بصمة الوجه والموقع الجغرافي للموظف بنجاح!");
+    }
+
     closeAddFaceModal();
   } catch (err) {
     console.error("خطأ حفظ البصمة:", err);
@@ -2274,25 +2340,31 @@ window.submitAttendanceWithLiveScan = async function() {
     const liveCapturedFaceImage = canvas.toDataURL('image/jpeg', 0.85);
     showLoadingOverlay();
 
-    const bioSnap = await getDocs(collection(db, "employeeBiometrics"));
-    if (bioSnap.empty) {
-      alert("لا يوجد موظفين مسجلين بالنظام! أضف موظفاً أولاً.");
-      closeScanCameraModal();
-      return;
-    }
+// ابحث عن الجزء الذي يستعلم فيه عن بصمة الموظف واجعله بالبريد الإلكتروني للحساب الحالي:
+const currentUser = auth.currentUser;
+const bioQ = query(collection(db, "employeeBiometrics"), where("userEmail", "==", currentUser.email));
+const bioSnap = await getDocs(bioQ);
 
-    const matchedEmp = bioSnap.docs[0].data();
+if (bioSnap.empty) {
+  alert("لم يتم تسجيل بصمة وجه لهذا الحساب بعد! يرجى إضافة بصمة الوجه أولاً.");
+  closeScanCameraModal();
+  return;
+}
 
-    await addDoc(collection(db, "attendanceLogs"), {
-      employeeName: matchedEmp.employeeName || 'الموظف المسجل',
-      employeeId: matchedEmp.employeeId || '-',
-      type: currentScanType === 'check-in' ? 'حضور' : 'انصراف',
-      timestamp: new Date().toLocaleString('ar-SA'),
-      location: { latitude: userLat, longitude: userLng },
-      distanceMeters: Math.round(distanceMeters),
-      matched: true,
-      faceSnapshot: liveCapturedFaceImage
-    });
+const matchedEmp = bioSnap.docs[0].data();
+
+await addDoc(collection(db, "attendanceLogs"), {
+  userEmail: currentUser.email,
+  employeeName: matchedEmp.employeeName || currentUser.email,
+  employeeId: matchedEmp.employeeId || '-',
+  type: currentScanType === 'check-in' ? 'حضور' : 'انصراف',
+  timestamp: new Date().toLocaleString('ar-SA'),
+  createdAtIso: new Date().toISOString(), // للترتيب الصحيح لاحقاً
+  location: { latitude: userLat, longitude: userLng },
+  distanceMeters: Math.round(distanceMeters),
+  matched: true,
+  faceSnapshot: liveCapturedFaceImage
+});
 
     alert(`✅ تم تسجيل ${currentScanType === 'check-in' ? 'الحضور' : 'الانصراف'} بنجاح وبصورة حية واضحة!`);
     closeScanCameraModal();
